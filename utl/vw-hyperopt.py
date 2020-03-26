@@ -5,6 +5,13 @@
 Github version of hyperparameter optimization for Vowpal Wabbit via hyperopt
 """
 
+
+"""
+TODO: Add option: cb, cb_explore and cb_explore_adf
+TODO: Add option for cb_type
+TODO: Training and testing for multiple seeds
+"""
+
 __author__ = 'kurtosis'
 
 from hyperopt import hp, fmin, tpe, rand, Trials, STATUS_OK
@@ -30,15 +37,29 @@ except ImportError:
 def read_arguments():
     parser = argparse.ArgumentParser()
 
+    subparsers = parser.add_subparsers(dest='subcommand')
+    parser_cb = subparsers.add_parser('is_cb', help="It is contextual bandit problelms")
+    parser_not_cb = subparsers.add_parser('not_cb', help="Not a contextual bandit problelms")
+    parser_cb.set_defaults(is_cb=True)
+    parser_not_cb.set_defaults(is_cb=False)
+
     parser.add_argument('--searcher', type=str, default='tpe', choices=['tpe', 'rand'])
     parser.add_argument('--additional_cmd', type=str, help="Additional arguments to be passed to vw while tuning hyper params. E.g.: '--keep a --keep b'", default='')
     parser.add_argument('--max_evals', type=int, default=100)
+    
     parser.add_argument('--train', type=str, required=True, help="training set")
     parser.add_argument('--holdout', type=str, required=True, help="holdout set")
+  #  parser_cb.add_argument('--iterations', type=str, default='1000', help="number of iterations")
+
+    # TODO: Number for seeds on which training should be done for a particular hyperparameter setting
+    parser_cb.add_argument('--train_seed', type=int, default='3', help="number of seeds for training") 
+    # TODO: Number for seeds on which testing should be done for a particular hyperparameter setting 
+    parser_cb.add_argument('--test_seeed', type=int, default='5', help="number of seeds for testing")
+
     parser.add_argument('--vw_space', type=str, required=True, help="hyperparameter search space (must be 'quoted')")
-    parser.add_argument('--outer_loss_function', default='logistic',
-                        choices=['logistic', 'roc-auc', 'pr-auc', 'hinge', 'squared'])  # TODO: implement quantile
-    parser.add_argument('--regression', action='store_true', default=False, help="""regression (continuous class labels)
+    parser_not_cb.add_argument('--outer_loss_function', default='logistic',
+                        choices=['logistic', 'roc-auc', 'pr-auc', 'hinge', 'squared', 'quantile'])  
+    parser_not_cb.add_argument('--regression', action='store_true', default=False, help="""regression (continuous class labels)
                                                                         or classification (-1 or 1, default value).""")
     parser.add_argument('--plot', action='store_true', default=False, help=("Plot the results in the end. "
                                                                             "Requires matplotlib and "
@@ -51,17 +72,12 @@ class HyperoptSpaceConstructor(object):
     """
     Takes command-line input and transforms it into hyperopt search space
     An example of command-line input:
-
     --algorithms=ftrl,sgd --l2=1e-8..1e-4~LO -l=0.01..10~L --ftrl_beta=0.01..1 --passes=1..10~I -q=SE+SZ+DR,SE~O
     """
 
     def __init__(self, command):
         self.command = command
-        self.space = None
-        self.algorithm_metadata = {
-            'ftrl': {'arg': '--ftrl', 'prohibited_flags': set()},
-            'sgd': {'arg': '', 'prohibited_flags': {'--ftrl_alpha', '--ftrl_beta'}}
-        }
+        self.space = None  
 
         self.range_pattern = re.compile("[^~]+")  # re.compile("(?<=\[).+(?=\])")
         self.distr_pattern = re.compile("(?<=~)[IOL]*")  # re.compile("(?<=\])[IOL]*")
@@ -115,6 +131,21 @@ class HyperoptSpaceConstructor(object):
 
         return distrib
 
+class HyperoptSpaceConstructorNotCB(HyperoptSpaceConstructor):
+    """
+    Takes command-line input and transforms it into hyperopt search space
+    An example of command-line input:
+    --algorithms=ftrl,sgd --l2=1e-8..1e-4~LO -l=0.01..10~L --ftrl_beta=0.01..1 --passes=1..10~I -q=SE+SZ+DR,SE~O
+    """
+
+    def __init__(self, command):  
+        self.algorithm_metadata = {
+            'ftrl': {'arg': '--ftrl', 'prohibited_flags': set()},
+            'sgd': {'arg': '', 'prohibited_flags': {'--ftrl_alpha', '--ftrl_beta'}}
+        }
+
+        HyperoptSpaceConstructor.__init__(self, command)
+
     def string_to_pyll(self):
         line = shlex.split(self.command)
 
@@ -149,6 +180,59 @@ class HyperoptSpaceConstructor(object):
                     pass
         self.space = hp.choice('algorithm', self.space.values())
 
+class HyperoptSpaceConstructorCB(HyperoptSpaceConstructor):
+    """
+    Takes command-line input and transforms it into hyperopt search space
+    An example of command-line input:
+    --algorithms=first,greedy,softmax --l2=1e-8..1e-4~LO -l=0.01..10~L --ftrl_beta=0.01..1 --passes=1..10~I -q=SE+SZ+DR,SE~O
+    """
+
+    def __init__(self, command):  
+        self.cb_algorithm_metadata = {
+            'first': {'arg': '--first', 'prohibited_flags': {'--mellowness', '--lambda'}},
+            'greedy': {'arg': '', 'prohibited_flags': {'--mellowness', '--lambda'}},
+            'cover': {'arg': '--cover', 'prohibited_flags': {'--mellowness', '--lambda'}},
+            'softmax': {'arg': '--softmax', 'prohibited_flags': {'--mellowness'}},
+            'bag': {'arg': '--bag', 'prohibited_flags': {'--mellowness', '--lambda'}},
+            'regcb': {'arg': '--regcb', 'prohibited_flags': {'--lambda'}}
+        }
+
+        HyperoptSpaceConstructor.__init__(self, command)
+
+    def string_to_pyll(self):
+        line = shlex.split(self.command)
+
+        cb_algorithms = ['greedy']
+        for arg in line:
+            arg, value = arg.split('=')
+            if arg == '--cb_algorithms':
+                cb_algorithms = set(self.range_pattern.findall(value)[0].split(','))
+                if tuple(self.distr_pattern.findall(value)) not in {(), ('O',)}:
+                    raise ValueError(("Distribution options are prohibited for --cb_algorithms flag. "
+                                      "Simply list the cb_algorithms instead (like --cb_algorithms=ftrl,sgd)"))
+                elif self.distr_pattern.findall(value) == ['O']:
+                    cb_algorithms.add('greedy')
+
+                for algo in cb_algorithms:
+                    if algo not in self.cb_algorithm_metadata:
+                        raise NotImplementedError(("%s cb_algorithm is not found. "
+                                                   "Supported cb_algorithms by now are %s")
+                                                  % (algo, str(self.cb_algorithm_metadata.keys())))
+                break
+
+        self.space = {algo: {'type': algo, 'argument': self.cb_algorithm_metadata[algo]['arg']} for algo in cb_algorithms}
+        for algo in cb_algorithms:
+            for arg in line:
+                arg, value = arg.split('=')
+                if arg == '--cb_algorithms':
+                    continue
+                if arg not in self.cb_algorithm_metadata[algo]['prohibited_flags']:
+                    distrib = self._process_vw_argument(arg, value, algo)
+                    self.space[algo][arg] = distrib
+                else:
+                    pass
+        self.space = hp.choice('cb_algorithm', self.space.values())
+
 class HyperOptimizer(object):
     def __init__(self, train_set, holdout_set, command, max_evals=100,
                  outer_loss_function='logistic',
@@ -168,25 +252,15 @@ class HyperOptimizer(object):
         self.param_suffix = None
         self.train_command = None
         self.validate_command = None
-
-        self.y_true_train = []
-        self.y_true_holdout = []
-
-        self.outer_loss_function = outer_loss_function
-        self.space = self._get_space(command)
+        
         self.max_evals = max_evals
         self.searcher = searcher
-        self.additional_cmd = additional_cmd
-        self.is_regression = is_regression
-        self.labels_clf_count = 0
+        self.additional_cmd = additional_cmd   
+        
 
         self.trials = Trials()
         self.current_trial = 0
 
-    def _get_space(self, command):
-        hs = HyperoptSpaceConstructor(command)
-        hs.string_to_pyll()
-        return hs.space
 
     def _configure_logger(self):
         LOGGER_FORMAT = "%(asctime)s,%(msecs)03d %(levelname)-8s [%(name)s/%(module)s:%(lineno)d]: %(message)s"
@@ -219,6 +293,29 @@ class HyperOptimizer(object):
         self.param_suffix = ' '.join(['%s %s' % (key, kwargs[key]) for key in kwargs if key.startswith('-')])
         self.param_suffix += ' %s' % (kwargs['argument'])
 
+
+    
+
+
+class HyperOptimizerNotCB(HyperOptimizer):
+    def __init__(self, train_set, holdout_set, command, max_evals=100,
+                 outer_loss_function='logistic',
+                 searcher='tpe', is_regression=False, additional_cmd=''):
+
+        self.y_true_holdout = []
+        self.outer_loss_function = outer_loss_function
+        self.is_regression = is_regression
+        self.labels_clf_count = 0
+
+        self.space = self._get_space(command)
+
+        HyperOptimizer.__init__(self, train_set, holdout_set, command, max_evals=max_evals, searcher=searcher, additional_cmd=additional_cmd)
+
+    def _get_space(self, command):
+        hs = HyperoptSpaceConstructorNotCB(command)
+        hs.string_to_pyll()
+        return hs.space
+
     def compose_vw_train_command(self):
         data_part = ('vw -d %s -f %s --holdout_off -c %s'
                      % (self.train_set, self.train_model, self.additional_cmd))
@@ -234,11 +331,13 @@ class HyperOptimizer(object):
             data_part += ' --loss_function=logistic --probabilities'
         self.validate_command = data_part
 
+    #I will put this function base class
     def fit_vw(self):
         self.compose_vw_train_command()
         self.logger.info("executing the following command (training): %s" % self.train_command)
         subprocess.call(shlex.split(self.train_command))
 
+    #I will put this function base class
     def validate_vw(self):
         self.compose_vw_validate_command()
         self.logger.info("executing the following command (validation): %s" % self.validate_command)
@@ -292,6 +391,11 @@ class HyperOptimizer(object):
             y_pred_holdout_proba = [1. / (1 + exp(-i)) for i in y_pred_holdout]
             fpr, tpr, _ = roc_curve(self.y_true_holdout, y_pred_holdout_proba)
             loss = -auc(fpr, tpr)
+
+        elif self.outer_loss_function == 'quantile': # Minimum at Median
+            tau = 0.5         
+            loss = np.mean([max(tau * (true - pred), (tau - 1) * (true - pred)) \
+                          for true, pred in zip(self.y_true_holdout, y_pred_holdout)])
 
         else:
             raise KeyError('Invalide outer loss function')
@@ -380,15 +484,129 @@ class HyperOptimizer(object):
         plt.savefig(self.hyperopt_progress_plot)
         self.logger.info('The diagnostic hyperopt progress plot is saved: %s' % self.hyperopt_progress_plot)
 
+class HyperOptimizerCB(HyperOptimizer):
+    def __init__(self, train_set, holdout_set, command, max_evals=100,
+                 searcher='tpe', additional_cmd=''):
+
+    	self.space = self._get_space(command)
+
+    	HyperOptimizer.__init__(self, train_set, holdout_set, command, max_evals=max_evals, searcher=searcher, additional_cmd=additional_cmd)
+
+    def _get_space(self, command):
+        hs = HyperoptSpaceConstructorNotCB(command)
+        hs.string_to_pyll()
+        return hs.space
+
+    '''
+    Run validation and train commamd for multiple seeds so that we could get more generalise setting
+    def get_seed(self):
+        return  np.random.randint(100)
+    '''
+
+    def compose_vw_train_command(self):
+        data_part = ('vw -d %s --cb_explore_adf -f %s --random_seed %d -c %s' \
+                     % (self.train_set, self.train_model, 13, self.additional_cmd))  # Use get_seed function
+        self.train_command = ' '.join([data_part, self.param_suffix])
+
+    def compose_vw_validate_command(self):
+        data_part = 'vw -t -d %s -i %s -p %s --random_seed %d -c %s' \
+                    % (self.holdout_set, self.train_model, self.holdout_pred, 33, self.additional_cmd) # Use get_seed function
+        self.validate_command = data_part
+
+    #I will put this function base class
+    def fit_vw(self):
+        self.compose_vw_train_command()
+        self.logger.info("executing the following command (training): %s" % self.train_command)
+        subprocess.call(shlex.split(self.train_command))
+
+    #I will put this function base class
+    def validate_vw(self):
+        self.compose_vw_validate_command()
+        self.logger.info("executing the following command (validation): %s" % self.validate_command)
+        subprocess.call(shlex.split(self.validate_command))
+    
+
+    def validation_metric_vw(self):
+        '''
+        Loss obtained from validations?
+        TODO
+        '''
+        pass
+
+    def hyperopt_search(self, parallel=False):  # TODO: implement parallel search with MongoTrials
+        def objective(kwargs):
+            start = dt.now()
+
+            self.current_trial += 1
+            self.logger.info('\n\nStarting trial no.%d' % self.current_trial)
+            self.get_hyperparam_string(**kwargs)
+            self.fit_vw()
+            self.validate_vw()
+            loss = self.validation_metric_vw()  #TODO
+
+            finish = dt.now()
+            elapsed = finish - start
+            self.logger.info("evaluation time for this step: %s" % str(elapsed))
+
+            # clean up
+            subprocess.call(shlex.split('rm %s %s' % (self.train_model, self.holdout_pred)))
+
+            to_return = {'status': STATUS_OK,
+                         'loss': loss,  # TODO: include also train loss tracking in order to prevent overfitting
+                         'eval_time': elapsed.seconds,
+                         'train_command': self.train_command,
+                         'current_trial': self.current_trial
+            }
+            return to_return
+
+        self.trials = Trials()
+        if self.searcher == 'tpe':
+            algo = tpe.suggest
+        elif self.searcher == 'rand':
+            algo = rand.suggest
+        else:
+            raise KeyError('Invalid searcher')
+
+        logging.debug("starting hypersearch...")
+        best_params = fmin(objective, space=self.space, trials=self.trials, algo=algo, max_evals=self.max_evals)
+        self.logger.debug("the best hyperopt parameters: %s" % str(best_params))
+
+        json.dump(self.trials.results, open(self.trials_output, 'w'))
+        self.logger.info('All the trials results are saved at %s' % self.trials_output)
+
+        best_configuration = self.trials.results[np.argmin(self.trials.losses())]['train_command']
+        best_loss = self.trials.results[np.argmin(self.trials.losses())]['loss']
+        self.logger.info("\n\nA full training command with the best hyperparameters: \n%s\n\n" % best_configuration)
+        self.logger.info("\n\nThe best holdout loss value: \n%s\n\n" % best_loss)
+
+        return best_configuration, best_loss
+
+    def plot_progress(self):
+
+        """
+        Same as for non CB algorithms, additionally it will show variations
+        for test_seeds. 
+        
+        """
+        pass     
+    
+
 
 def main():
     args = read_arguments()
-    h = HyperOptimizer(train_set=args.train, holdout_set=args.holdout, command=args.vw_space,
-                       max_evals=args.max_evals,
-                       outer_loss_function=args.outer_loss_function,
-                       additional_cmd=args.additional_cmd,
-                       searcher=args.searcher, is_regression=args.regression)
-    h.get_y_true_holdout()
+    if args.is_cb:
+        h = HyperOptimizerCB(train_set=args.train, holdout_set=args.holdout, command=args.vw_space,
+                        max_evals=args.max_evals,
+                        additional_cmd=args.additional_cmd,
+                        searcher=args.searcher)
+    else:
+        h = HyperOptimizerNotCB(train_set=args.train, holdout_set=args.holdout, command=args.vw_space,
+                        max_evals=args.max_evals,
+                        outer_loss_function=args.outer_loss_function,
+                        additional_cmd=args.additional_cmd,
+                        searcher=args.searcher, is_regression=args.regression)
+        h.get_y_true_holdout()
+
     h.hyperopt_search()
     if args.plot:
         h.plot_progress()
