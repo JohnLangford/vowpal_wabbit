@@ -1,27 +1,19 @@
-<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+<Project Sdk="Microsoft.NET.Sdk">
+
   <PropertyGroup>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">x64</Platform>
     <ProjectGuid>{01A85382-C3E9-480A-86BF-FAFE4AD107A7}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>VowpalWabbit.Console</RootNamespace>
-    <AssemblyName>vw_json</AssemblyName>
-    <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
+    <AssemblyName>cs_console</AssemblyName>
+    <TargetFrameworks>netcoreapp3.1;net452</TargetFrameworks>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <FileAlignment>512</FileAlignment>
-    <NuGetPackageImportStamp>
-    </NuGetPackageImportStamp>
-    <TargetFrameworkProfile />
-    <OutputPath>$(SolutionDir)out\target\$(Configuration)\x64\</OutputPath>
-    <IntermediateOutputPath>$(SolutionDir)out\int\$(Configuration)\x64\$(ProjectName)\</IntermediateOutputPath>
-  </PropertyGroup>
-  <PropertyGroup>
+    <DocumentationFile>$(OutputPath)\$(AssemblyName).XML</DocumentationFile>
     <SignAssembly>true</SignAssembly>
-  </PropertyGroup>
-  <PropertyGroup>
     <AssemblyOriginatorKeyFile>..\vw_key.snk</AssemblyOriginatorKeyFile>
+    <Configurations>Debug;Release</Configurations>
+    <Platforms>x64</Platforms>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
     <DebugSymbols>true</DebugSymbols>
@@ -42,64 +34,32 @@
     <Prefer32Bit>true</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Newtonsoft.Json, Version=9.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
-      <HintPath>$(SolutionDir)packages\Newtonsoft.Json.9.0.1\lib\net45\Newtonsoft.Json.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
-    <Reference Include="System" />
-    <Reference Include="System.Core" />
-    <Reference Include="System.Xml.Linq" />
-    <Reference Include="System.Data.DataSetExtensions" />
-    <Reference Include="Microsoft.CSharp" />
-    <Reference Include="System.Data" />
-    <Reference Include="System.Xml" />
+    <ProjectReference Include="..\common\vw_common.csproj" />
+    <ProjectReference Include="..\cs\cs.csproj" />
+    <ProjectReference Include="..\cs_json\cs_json.csproj" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'net452'">
+    <ProjectReference Include="..\cli\vw_clr.vcxproj" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'netcoreapp3.1'">
+    <ProjectReference Include="..\cli\vw_netcore.vcxproj" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Program.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
+    <PackageReference Include="Newtonsoft.Json">
+      <Version>12.0.1</Version>
+    </PackageReference>
   </ItemGroup>
-  <ItemGroup>
-    <None Include="App.config">
-      <SubType>Designer</SubType>
-    </None>
-    <None Include="packages.config">
-      <SubType>Designer</SubType>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\cli\vw_clr.vcxproj">
-      <Project>{85e55ae0-3784-4968-9271-c81af560e1c1}</Project>
-      <Name>vw_clr</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\common\vw_common.csproj">
-      <Project>{e621e022-c1f8-433f-905a-ab9a3de072b7}</Project>
-      <Name>vw_common</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\cs\cs.csproj">
-      <Project>{e4e962ae-7056-4eb0-a8c5-8dc824a4b068}</Project>
-      <Name>cs</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\cs_json\cs_json.csproj">
-      <Project>{9e27fa94-ab34-4736-8427-fb7a2ba90d52}</Project>
-      <Name>cs_json</Name>
-    </ProjectReference>
-  </ItemGroup>
-  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 
   <PropertyGroup>
-    <WriteAssemblyInfoCs>true</WriteAssemblyInfoCs>
     <AssemblyTitle>Vowpal Wabbit Console</AssemblyTitle>
-    <AssemblyDescription>Vowpal Wabbit Console</AssemblyDescription>
-    <AssemblyGuid>c7c26e42-6d03-4fe5-943c-add2440f1e37</AssemblyGuid>
+    <Description>Vowpal Wabbit Console</Description>
+    <Company>Microsoft Corp</Company>
+    <Product>Vowpal Wabbit Console</Product>
+    <CurrentYear>$([System.DateTime]::Now.ToString(yyyy))</CurrentYear>
+    <Copyright>Copyright (C) Microsoft Corp 2012-$(CurrentYear), Yahoo! Inc. 2007-2012, and many individual contributors. All rights reserved</Copyright>
+    <InformationalVersion>$(VowpalWabbitAssemblyVersion)</InformationalVersion>
+    <ProductVersion>$(VowpalWabbitAssemblyVersion)</ProductVersion>
+    <AssemblyVersion>$(VowpalWabbitAssemblyVersion)</AssemblyVersion>
+    <FileVersion>$(VowpalWabbitAssemblyVersion)</FileVersion>
   </PropertyGroup>
-
-  <Import Project="$(ProjectDir)\..\version.targets" />
-  
-  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
-    <PropertyGroup>
-      <ErrorText>This project references NuGet package(s) that are missing on this computer. Enable NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
-    </PropertyGroup>
-    <Error Condition="!Exists('$(SolutionDir)packages\MSBuildTasks.1.5.0.235\build\MSBuildTasks.targets')" Text="$([System.String]::Format('$(ErrorText)', '$(SolutionDir)packages\MSBuildTasks.1.5.0.235\build\MSBuildTasks.targets'))" />
-  </Target>
-  <Import Project="$(SolutionDir)packages\MSBuildTasks.1.5.0.235\build\MSBuildTasks.targets" Condition="Exists('$(SolutionDir)packages\MSBuildTasks.1.5.0.235\build\MSBuildTasks.targets')" />
 </Project>

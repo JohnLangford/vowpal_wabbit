@@ -20,7 +20,7 @@ PUSHD %~dp0
 
 REM TODO: Figure out how to parametrize this script?! (is there a standard, or do we actually need parse args?)
 ECHO Building "%vwRoot%\vowpalwabbit\vw.sln" for Release x64
-"%msbuildPath%" /v:normal %__MULTIBUILD_SWITCH% /nr:false /p:Configuration=Release;Platform=x64 "%vwRoot%\vowpalwabbit\vw.sln" %1
+"%msbuildPath%" /bl:"%vwRoot%\vowpalwabbit\vw.binlog" /v:normal %__MULTIBUILD_SWITCH% /nr:false /p:Configuration=Release;Platform=x64 "%vwRoot%\vowpalwabbit\vw.sln" %1
 
 POPD
 

@@ -5,7 +5,7 @@
 namespace vw_slim
 {
 example_predict_builder::example_predict_builder(
-    example_predict* ex, char* namespace_name, uint32_t feature_index_num_bits)
+    example_predict* ex, const char* namespace_name, uint32_t feature_index_num_bits)
     : _ex(ex)
 {
   _feature_index_bit_mask = ((uint64_t)1 << feature_index_num_bits) - 1;
@@ -27,7 +27,7 @@ void example_predict_builder::add_namespace(namespace_index feature_group)
   _ex->indices.unique_add_sorted(feature_group);
 }
 
-void example_predict_builder::push_feature_string(char* feature_name, feature_value value)
+void example_predict_builder::push_feature_string(const char* feature_name, feature_value value)
 {
   feature_index feature_hash =
       _feature_index_bit_mask & hashstring(feature_name, strlen(feature_name), _namespace_hash);

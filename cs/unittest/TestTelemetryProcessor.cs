@@ -3,7 +3,7 @@ using Microsoft.ApplicationInsights.DataContracts;
 using Microsoft.ApplicationInsights.Extensibility;
 using Microsoft.ApplicationInsights.Extensibility.Implementation;
 using System;
-using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
@@ -15,10 +15,10 @@ namespace cs_unittest
     {
         private ITelemetryProcessor Next { get; set; }
 
-        public SynchronizedCollection<ExceptionTelemetry> Exceptions { get; private set; }
+        public ConcurrentBag<ExceptionTelemetry> Exceptions { get; private set; }
 
         // Link processors to each other in a chain.
-        public TestTelemetryProcessor(ITelemetryProcessor next, SynchronizedCollection<ExceptionTelemetry> exceptions)
+        public TestTelemetryProcessor(ITelemetryProcessor next, ConcurrentBag<ExceptionTelemetry> exceptions)
         {
             this.Next = next;
             this.Exceptions = exceptions;

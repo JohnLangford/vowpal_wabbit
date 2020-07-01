@@ -21,7 +21,7 @@ namespace cs_unittest
         public void Init()
         {
             var basePath = Path.GetDirectoryName(typeof(TestBase).Assembly.Location);
-            Environment.CurrentDirectory = basePath + @"\..\..\..\test";
+            Environment.CurrentDirectory = basePath + @"\..\..\..\..\..\..\test";
 
             if (!Directory.Exists("models"))
             {

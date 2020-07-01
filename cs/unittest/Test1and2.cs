@@ -12,7 +12,7 @@ using System.Threading;
 using VW.Serializer;
 using cs_testcommon;
 
-namespace cs_test
+namespace cs_unittest
 {
     [TestClass]
     public class Test1and2Class : TestBase

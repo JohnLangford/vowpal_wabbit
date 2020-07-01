@@ -2,58 +2,64 @@ resources:
 - repo: self
 
 pool:
-  name: Hosted VS2017
-  demands: Cmd
-
-variables:
-  SuppressTag: $[ eq(variables.officialbuild, 'true') ]
+  name: Azure Pipelines
+  vmImage: 'windows-2019'
 
 steps:
-- task: VisualStudioTestPlatformInstaller@1
+- task: NuGetToolInstaller@1
+  displayName: Nuget 5.x
   inputs:
-    packageFeedSelector: 'nugetOrg' # Options: nugetOrg, customFeed, netShare
-    versionSelector: 'latestStable' # Required when packageFeedSelector == NugetOrg || PackageFeedSelector == CustomFeed# Options: latestPreRelease, latestStable, specificVersion
-    #testPlatformVersion: # Required when versionSelector == SpecificVersion
-    #customFeed: # Required when packageFeedSelector == CustomFeed
-    #username: # Optional
-    #password: # Optional
-    #netShare: # Required when packageFeedSelector == NetShare
-- script: CALL .scripts/restore.cmd
-  displayName: 'Restore dependencies'
-  env:
-    nugetPath: $(Build.SourcesDirectory)\vowpalwabbit\.nuget\nuget.exe
-  failOnStderr: true
-- script: CALL .scripts/build.cmd
-  displayName: 'Build vw.sln'
-  env:
-    nugetPath: $(Build.SourcesDirectory)\vowpalwabbit\.nuget\nuget.exe
-  failOnStderr: true
+    versionSpec: '5.x'
+
+- task: NuGetCommand@2
+  displayName: Nuget Restore
+  inputs:
+    command: 'restore'
+    restoreSolution: './vowpalwabbit/vw.sln'
+
+- task: VSBuild@1
+  displayName: Build vw.sln
+  inputs:
+    solution: './vowpalwabbit/vw.sln'
+    vsVersion: '16.0'
+    msbuildArgs: '/nr:false /bl:"$(Build.SourcesDirectory)\vowpalwabbit\vw.binlog"'
+    platform: 'x64'
+    configuration: 'Release'
+
 - script: CALL .scripts/test.cmd
   displayName: 'Run tests'
-  env:
-    nugetPath: $(Build.SourcesDirectory)\vowpalwabbit\.nuget\nuget.exe
   failOnStderr: false
+
 - task: PublishTestResults@2
   displayName: 'Publish Test Results'
   inputs:
     testResultsFormat: VSTest
-    testResultsFiles: '**/vowpalwabbit/out/test/Release/x64/*.trx'
+    testResultsFiles: '**/vowpalwabbit/out/test/Release/x64/**/*.trx'
+
 - script: CALL .scripts/package.cmd
   displayName: 'Package artifacts'
   env:
-    nugetPath: $(Build.SourcesDirectory)\vowpalwabbit\.nuget\nuget.exe
     Tag: -$(Build.SourceVersion)--$(Build.BuildId)
     SourceInfo: 'Built from commit id: $(Build.SourceVersion)'
   failOnStderr: true
+
 - task: PublishBuildArtifacts@1
   displayName: 'Publish Artifact: target'
   inputs:
     PathtoPublish: $(Build.SourcesDirectory)\vowpalwabbit\out\target
     ArtifactName: target
   condition: succeededOrFailed()
+
 - task: PublishBuildArtifacts@1
   displayName: 'Publish Artifact: package'
   inputs:
-    PathtoPublish: $(Build.SourcesDirectory)\vowpalwabbit\out\package
-    ArtifactName: package
+     PathtoPublish: $(Build.SourcesDirectory)\vowpalwabbit\out\package
+     ArtifactName: package
+  condition: succeededOrFailed()
+
+- task: PublishBuildArtifacts@1
+  displayName: 'Publish Artifact: vw.binlog'
+  inputs:
+     PathtoPublish: $(Build.SourcesDirectory)\vowpalwabbit\vw.binlog
+     ArtifactName: package
   condition: succeededOrFailed()

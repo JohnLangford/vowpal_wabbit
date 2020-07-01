@@ -4,11 +4,11 @@ IF NOT DEFINED nugetPath (
 )
 
 IF NOT DEFINED msbuildPath (
-    CALL %~dp0find-vs2017.cmd
+    CALL %~dp0find-vs.cmd
 )
 
 IF NOT DEFINED vstestPath (
-    CALL %~dp0find-vs2017.cmd
+    CALL %~dp0find-vs.cmd
 )
 
 IF NOT DEFINED msbuildPath (

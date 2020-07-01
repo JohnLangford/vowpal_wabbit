@@ -13,27 +13,41 @@
     <copyright>Copyright (C) Microsoft Corp 2012-2019, Yahoo! Inc. 2007-2012, and many individual contributors. All rights reserved.</copyright>
   </metadata>
   <files>
-	  <!-- despite warning this is still required -->
-	  <file src="$RootRelativeOutputDirX64$$Configuration$\$Platform$\VowpalWabbit.dll" target="lib\net45" />
-	  <file src="$RootRelativeOutputDirX64$$Configuration$\$Platform$\VowpalWabbit.pdb" target="lib\net45" />
-	  <file src="$RootRelativeOutputDirX64$$Configuration$\$Platform$\VowpalWabbit.xml" target="lib\net45" />
+    <!-- despite warning this is still required -->
+    <file src="$RootRelativeOutputDirX64$$Configuration$\$Platform$\net452\VowpalWabbit.dll" target="lib\net452" />
+    <file src="$RootRelativeOutputDirX64$$Configuration$\$Platform$\net452\VowpalWabbit.pdb" target="lib\net452" />
+    <file src="$RootRelativeOutputDirX64$$Configuration$\$Platform$\net452\VowpalWabbit.xml" target="lib\net452" />
 
-	  <file src="$RootRelativeOutputDirX64$$Configuration$\$Platform$\VowpalWabbit.Common.dll" target="lib\net45" />
-	  <file src="$RootRelativeOutputDirX64$$Configuration$\$Platform$\VowpalWabbit.Common.pdb" target="lib\net45" />
-	  <file src="$RootRelativeOutputDirX64$$Configuration$\$Platform$\VowpalWabbit.Common.xml" target="lib\net45" />
+    <file src="$RootRelativeOutputDirX64$$Configuration$\$Platform$\net452\VowpalWabbit.Common.dll" target="lib\net452" />
+    <file src="$RootRelativeOutputDirX64$$Configuration$\$Platform$\net452\VowpalWabbit.Common.pdb" target="lib\net452" />
+    <file src="$RootRelativeOutputDirX64$$Configuration$\$Platform$\net452\VowpalWabbit.Common.xml" target="lib\net452" />
 
-	  <file src="$RootRelativeOutputDirX64$$Configuration$\$Platform$\VowpalWabbit.Core.dll" target="lib\net45" />
-	  <file src="$RootRelativeOutputDirX64$$Configuration$\$Platform$\VowpalWabbit.Core.pdb" target="lib\net45" />
-	  <file src="$RootRelativeOutputDirX64$$Configuration$\$Platform$\VowpalWabbit.Core.xml" target="lib\net45" />
+    <file src="$RootRelativeOutputDirX64$$Configuration$\$Platform$\net452\VowpalWabbit.Core.dll" target="lib\net452" />
+    <file src="$RootRelativeOutputDirX64$$Configuration$\$Platform$\net452\VowpalWabbit.Core.pdb" target="lib\net452" />
+    <file src="$RootRelativeOutputDirX64$$Configuration$\$Platform$\net452\VowpalWabbit.Core.xml" target="lib\net452" />
 
-	  <file src="$RepoRoot$\cs\cs\**\*.cs" target="src\cs" exclude="**\obj\**\*.cs" />
-	  <file src="$RepoRoot$\cs\common\**\*.cs" target="src\common" exclude="**\obj\**\*.cs" />
-	  <file src="$RepoRoot$\cs\cli\*.cpp" target="src\cli" />
-	  <file src="$RepoRoot$\cs\cli\*.h" target="src\cli" />
-	  <file src="$RepoRoot$\vowpalwabbit\*.cc" target="src\vowpalwabbit" />
-	  <file src="$RepoRoot$\vowpalwabbit\*.h" target="src\vowpalwabbit" />
+    <file src="$RootRelativeOutputDirX64$$Configuration$\$Platform$\netcoreapp3.1\Ijwhost.dll" target="lib\netcoreapp3.1" />
 
-  	  <file src="$RepoRoot$\cs\cs\web.config.transform" target="content"/>
+    <file src="$RootRelativeOutputDirX64$$Configuration$\$Platform$\netcoreapp3.1\VowpalWabbit.dll" target="lib\netcoreapp3.1" />
+    <file src="$RootRelativeOutputDirX64$$Configuration$\$Platform$\netcoreapp3.1\VowpalWabbit.pdb" target="lib\netcoreapp3.1" />
+    <file src="$RootRelativeOutputDirX64$$Configuration$\$Platform$\netcoreapp3.1\VowpalWabbit.xml" target="lib\netcoreapp3.1" />
+
+    <file src="$RootRelativeOutputDirX64$$Configuration$\$Platform$\netcoreapp3.1\VowpalWabbit.Common.dll" target="lib\netcoreapp3.1" />
+    <file src="$RootRelativeOutputDirX64$$Configuration$\$Platform$\netcoreapp3.1\VowpalWabbit.Common.pdb" target="lib\netcoreapp3.1" />
+    <file src="$RootRelativeOutputDirX64$$Configuration$\$Platform$\netcoreapp3.1\VowpalWabbit.Common.xml" target="lib\netcoreapp3.1" />
+
+    <file src="$RootRelativeOutputDirX64$$Configuration$\$Platform$\netcoreapp3.1\VowpalWabbit.Core.dll" target="lib\netcoreapp3.1" />
+    <file src="$RootRelativeOutputDirX64$$Configuration$\$Platform$\netcoreapp3.1\VowpalWabbit.Core.pdb" target="lib\netcoreapp3.1" />
+    <file src="$RootRelativeOutputDirX64$$Configuration$\$Platform$\netcoreapp3.1\VowpalWabbit.Core.xml" target="lib\netcoreapp3.1" />
+
+    <file src="$RepoRoot$\cs\cs\**\*.cs" target="src\cs" exclude="**\obj\**\*.cs" />
+    <file src="$RepoRoot$\cs\common\**\*.cs" target="src\common" exclude="**\obj\**\*.cs" />
+    <file src="$RepoRoot$\cs\cli\*.cpp" target="src\cli" />
+    <file src="$RepoRoot$\cs\cli\*.h" target="src\cli" />
+    <file src="$RepoRoot$\vowpalwabbit\*.cc" target="src\vowpalwabbit" />
+    <file src="$RepoRoot$\vowpalwabbit\*.h" target="src\vowpalwabbit" />
+
+    <file src="$RepoRoot$\cs\cs\web.config.transform" target="content"/>
   </files>
 </package>
 

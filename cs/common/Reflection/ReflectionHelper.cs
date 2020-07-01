@@ -29,6 +29,7 @@ namespace VW.Reflection
         /// <param name="sourceExpression">The source expression to be compiled.</param>
         /// <returns>A callable function.</returns>
         /// <remarks>Can't constraint on Func (or would have to have 11 overloads) nor is it possible to constaint on delegate.</remarks>
+#if NET452
         public static System.Delegate CompileToFunc<T>(this Expression<T> sourceExpression)
         {
             // inspect T to be Func<...>
@@ -87,6 +88,12 @@ namespace VW.Reflection
 
             return Delegate.CreateDelegate(typeof(T), dynType.GetMethod(methodName));
         }
+#elif NETCOREAPP3_1
+        public static System.Delegate CompileToFunc<T, TR>(this Expression<Func<T, TR>> sourceExpression)
+        {
+            return sourceExpression.Compile();
+        }
+#endif
 
         /// <summary>
         /// TODO: replace me with Roslyn once it's released and just generate string code. This way the overload resolution is properly done.

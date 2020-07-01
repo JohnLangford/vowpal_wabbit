@@ -12,17 +12,28 @@
     <description>Official Vowpal Wabbit library including C# interface.  $SourceInfo$</description>
     <copyright>Copyright (C) Microsoft Corp 2012-2019, Yahoo! Inc. 2007-2012, and many individual contributors. All rights reserved.</copyright>
     <dependencies>
-      <group>
+      <group targetFramework="net452">
         <dependency id="VowpalWabbit" version="$version$$Tag$" />
-        <dependency id="Newtonsoft.Json" version="8.0.2" />
+        <dependency id="Newtonsoft.Json" version="12.0.1" />
+      </group>
+      <group targetFramework="netcoreapp3.1">
+        <dependency id="VowpalWabbit" version="$version$$Tag$" />
+        <dependency id="Newtonsoft.Json" version="12.0.1" />
+        <dependency id="System.Runtime.Caching" version="4.7.0" />
       </group>
     </dependencies>
   </metadata>
   <files>
 	  <!-- despite warning this is still required -->
-	  <file src="$RootRelativeOutputDirX64$$Configuration$\$Platform$\VowpalWabbit.JSON.dll" target="lib\net45" />
-	  <file src="$RootRelativeOutputDirX64$$Configuration$\$Platform$\VowpalWabbit.JSON.pdb" target="lib\net45" />
-	  <file src="$RootRelativeOutputDirX64$$Configuration$\$Platform$\VowpalWabbit.JSON.xml" target="lib\net45" />
+    <file src="$RootRelativeOutputDirX64$$Configuration$\$Platform$\net452\VowpalWabbit.JSON.dll" target="lib\net452" />
+    <file src="$RootRelativeOutputDirX64$$Configuration$\$Platform$\net452\VowpalWabbit.JSON.pdb" target="lib\net452" />
+    <file src="$RootRelativeOutputDirX64$$Configuration$\$Platform$\net452\VowpalWabbit.JSON.xml" target="lib\net452" />
+
+    <file src="$RootRelativeOutputDirX64$$Configuration$\$Platform$\netcoreapp3.1\Ijwhost.dll" target="lib\netcoreapp3.1" />
+
+    <file src="$RootRelativeOutputDirX64$$Configuration$\$Platform$\netcoreapp3.1\VowpalWabbit.JSON.dll" target="lib\netcoreapp3.1" />
+    <file src="$RootRelativeOutputDirX64$$Configuration$\$Platform$\netcoreapp3.1\VowpalWabbit.JSON.pdb" target="lib\netcoreapp3.1" />
+    <file src="$RootRelativeOutputDirX64$$Configuration$\$Platform$\netcoreapp3.1\VowpalWabbit.JSON.xml" target="lib\netcoreapp3.1" />
   </files>
 </package>
 

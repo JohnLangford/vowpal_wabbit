@@ -72,6 +72,7 @@ test/RunTests.last.times
 **/dll
 **/ipch
 **/target
+**/int
 
 # VS files
 *.opensdf
@@ -84,6 +85,12 @@ demo/mnist/infimnist
 demo/ocr/letter.*
 demo/ocr/run.*
 **/TestResults
+vowpalwabbit/vw.binlog
+
+# ReSharper
+_ReSharper*/
+*.[Rr]e[Ss]harper
+*.DotSettings.user
 
 # IntelliJ
 *.idea
