@@ -10,6 +10,7 @@
 #include "io_buf.h"
 #include "global_data.h"
 #include "shared_data.h"
+#include "io/io_adapter.h"
 
 #include "io/logger.h"
 

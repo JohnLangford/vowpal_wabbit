@@ -16,4 +16,6 @@ std::vector<std::string> find_opt(std::string const& command_line_args, std::str
 bool find_opt_float(std::string const& command_line_args, std::string arg_name, float& value);
 
 bool find_opt_int(std::string const& command_line_args, std::string arg_name, int& value);
+
+bool find_opt_uint64_t(std::string const& command_line_args, std::string arg_name, uint64_t& value);
 }  // namespace vw_slim

@@ -5,7 +5,6 @@
 #pragma once
 
 #include "vw_string_view.h"
-
 #include <vector>
 
 struct parser;

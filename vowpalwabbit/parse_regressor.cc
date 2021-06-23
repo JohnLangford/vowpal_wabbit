@@ -28,6 +28,7 @@
 #include "vw_versions.h"
 #include "options_serializer_boost_po.h"
 #include "shared_data.h"
+#include "options.h"
 
 void initialize_weights_as_random_positive(weight* weights, uint64_t index) { weights[0] = 0.1f * merand48(index); }
 void initialize_weights_as_random(weight* weights, uint64_t index) { weights[0] = merand48(index) - 0.5f; }

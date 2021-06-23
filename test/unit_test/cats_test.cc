@@ -14,11 +14,7 @@ using namespace VW::continuous_action::cats;
 
 BOOST_AUTO_TEST_CASE(cats_test_get_loss_zero_for_bad_prediction)
 {
-  auto data = VW::make_unique<cats>(nullptr);
-  data->min_value = 0;
-  data->max_value = 32;
-  data->num_actions = 8;
-  data->bandwidth = 3;
+  auto data = VW::make_unique<cats>(nullptr, 8, 3, 0, 32, true); 
 
   VW::cb_continuous::continuous_label cont_label;
   cont_label.costs = v_init<VW::cb_continuous::continuous_label_elm>();
@@ -38,11 +34,7 @@ BOOST_AUTO_TEST_CASE(cats_test_get_loss_zero_for_bad_prediction)
 
 BOOST_AUTO_TEST_CASE(cats_test_get_loss_not_zero_for_bad_prediction_and_large_b)
 {
-  auto data = VW::make_unique<cats>(nullptr);
-  data->min_value = 0;
-  data->max_value = 32;
-  data->num_actions = 8;
-  data->bandwidth = 30;
+  auto data = VW::make_unique<cats>(nullptr, 8, 30, 0, 32, true);
 
   VW::cb_continuous::continuous_label cont_label;
   cont_label.costs = v_init<VW::cb_continuous::continuous_label_elm>();
@@ -68,11 +60,7 @@ BOOST_AUTO_TEST_CASE(cats_test_get_loss_not_zero_for_bad_prediction_and_large_b)
 
 BOOST_AUTO_TEST_CASE(cats_test_get_loss_for_good_prediction_and_small_b_not_close_to_range_edges)
 {
-  auto data = VW::make_unique<cats>(nullptr);
-  data->min_value = 1;
-  data->max_value = 34;
-  data->num_actions = 4;
-  data->bandwidth = 4;
+  auto data = VW::make_unique<cats>(nullptr, 4, 4, 1, 34, true);
 
   // continous_range = 34 - 1 = 33
   // unit_range = continuous_range / num_action = 33 / 4 = 8.25
@@ -101,11 +89,7 @@ BOOST_AUTO_TEST_CASE(cats_test_get_loss_for_good_prediction_and_small_b_not_clos
 
 BOOST_AUTO_TEST_CASE(cats_test_get_loss_for_good_prediction_and_small_b_close_to_range_edges)
 {
-  auto data = VW::make_unique<cats>(nullptr);
-  data->min_value = 1;
-  data->max_value = 34;
-  data->num_actions = 4;
-  data->bandwidth = 4;
+  auto data = VW::make_unique<cats>(nullptr, 4, 4, 1, 34, true);
 
   // continous_range = 34 - 1 = 33
   // unit_range = continuous_range / num_action = 33 / 4 = 8.25
@@ -134,7 +118,7 @@ BOOST_AUTO_TEST_CASE(cats_test_get_loss_for_good_prediction_and_small_b_close_to
 
 BOOST_AUTO_TEST_CASE(cats_test_get_loss_with_default_bandwidth)
 {
-  auto data = VW::make_unique<cats>(nullptr);
+  auto data = VW::make_unique<cats>(nullptr, 8, 0, 0, 32, false);
   data->min_value = 0;
   data->max_value = 32;
   data->num_actions = 8;

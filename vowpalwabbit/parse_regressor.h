@@ -4,7 +4,15 @@
 #pragma once
 #include <string>
 #include "global_data.h"
-#include "options.h"
+
+// forward declaration
+namespace VW
+{
+namespace config
+{
+struct options_i;
+}
+}  // namespace VW
 
 void read_regressor_file(vw& all, std::vector<std::string> files, io_buf& io_temp);
 

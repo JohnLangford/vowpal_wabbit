@@ -4,6 +4,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cfloat>
 
 struct example;
 struct vw;
@@ -12,9 +13,11 @@ struct label_data
 {
   float label = 0.f;
 
-  label_data();
-  label_data(float label);
-  void reset_to_default();
+  label_data() { reset_to_default(); }
+
+  label_data(float label) : label(label) {}
+
+  void reset_to_default() { label = FLT_MAX; }
 };
 
 struct simple_label_reduction_features

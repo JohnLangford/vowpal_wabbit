@@ -108,3 +108,8 @@ xxd -i cb_data_9.model >> $DATA_H
 xxd -i cb_data_9.pred >> $DATA_H
 
 
+$VW --quiet -d cats.txt --cats 4 --min_value=185 --max_value=23959 --bandwidth 3000 -f cats.model
+$VW --quiet -d cats.txt -i cats.model -p cats.pred -t
+
+xxd -i cats.model >> $DATA_H
+xxd -i cats.pred >> $DATA_H

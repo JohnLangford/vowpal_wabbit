@@ -9,8 +9,6 @@
 
 #include "cats_pdf.h"
 #include "parse_args.h"
-#include "error_constants.h"
-#include "api_status.h"
 #include "cb_continuous_label.h"
 #include "debug_log.h"
 #include "shared_data.h"
@@ -41,28 +39,6 @@ namespace continuous_action
 {
 namespace cats_pdf
 {
-////////////////////////////////////////////////////
-// BEGIN cats_pdf reduction and reduction methods
-struct cats_pdf
-{
-  cats_pdf(single_learner* p_base, bool always_predict = false);
-
-  int learn(example& ec, experimental::api_status* status);
-  int predict(example& ec, experimental::api_status* status);
-
-private:
-  single_learner* _base = nullptr;
-  bool _always_predict = false;
-};
-
-// Pass through
-int cats_pdf::predict(example& ec, experimental::api_status*)
-{
-  VW_DBG(ec) << "cats_pdf::predict(), " << features_to_string(ec) << endl;
-  _base->predict(ec);
-  return VW::experimental::error_code::success;
-}
-
 // Pass through
 int cats_pdf::learn(example& ec, experimental::api_status*)
 {
@@ -75,17 +51,11 @@ int cats_pdf::learn(example& ec, experimental::api_status*)
   return VW::experimental::error_code::success;
 }
 
-cats_pdf::cats_pdf(single_learner* p_base, bool always_predict) : _base(p_base), _always_predict(always_predict) {}
-
 // Free function to tie function pointers to reduction class methods
-template <bool is_learn>
-void predict_or_learn(cats_pdf& reduction, single_learner&, example& ec)
+void learn(cats_pdf& reduction, single_learner&, example& ec)
 {
   experimental::api_status status;
-  if (is_learn)
-    reduction.learn(ec, &status);
-  else
-    reduction.predict(ec, &status);
+  reduction.learn(ec, &status);
 
   if (status.get_error_code() != VW::experimental::error_code::success)
   { VW_DBG(ec) << status.get_error_msg() << endl; }
@@ -183,8 +153,8 @@ LEARNER::base_learner* setup(config::options_i& options, vw& all)
   bool always_predict = all.final_prediction_sink.size() > 0;
   auto p_reduction = scoped_calloc_or_throw<cats_pdf>(as_singleline(p_base), always_predict);
 
-  LEARNER::learner<cats_pdf, example>& l = init_learner(p_reduction, as_singleline(p_base), predict_or_learn<true>,
-      predict_or_learn<false>, 1, prediction_type_t::pdf, all.get_setupfn_name(setup), true);
+  LEARNER::learner<cats_pdf, example>& l = init_learner(
+      p_reduction, as_singleline(p_base), learn, predict, 1, prediction_type_t::pdf, all.get_setupfn_name(setup), true);
 
   l.set_finish_example(finish_example);
   all.example_parser->lbl_parser = cb_continuous::the_label_parser;

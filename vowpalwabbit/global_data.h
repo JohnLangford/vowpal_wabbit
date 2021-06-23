@@ -17,7 +17,6 @@
 #include <array>
 #include <memory>
 #include <atomic>
-#include "vw_string_view.h"
 
 // Thread cannot be used in managed C++, tell the compiler that this is unmanaged even if included in a managed project.
 #ifdef _M_CEE

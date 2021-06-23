@@ -9,6 +9,7 @@
 #include "global_data.h"
 
 #include "io/logger.h"
+#include "io/io_adapter.h"
 
 namespace logger = VW::io::logger;
 

@@ -48,6 +48,30 @@ std::vector<float> read_floats(const char* filename)
   return read_floats(data);
 }
 
+std::pair<std::vector<float>, std::vector<float>> read_action_pdf_values(std::istream& data)
+{
+  std::vector<float> actions;
+  std::vector<float> pdf_values;
+
+  std::string line;
+  while (std::getline(data, line))
+  {
+    std::string action = line.substr(0, line.find(",") + 1);
+    std::string pdf_value = line.substr(line.find(",") + 1);
+    actions.push_back((float)atof(action.c_str()));
+    pdf_values.push_back((float)atof(pdf_value.c_str()));
+  }
+
+  return {actions, pdf_values};
+}
+
+std::pair<std::vector<float>, std::vector<float>> read_action_pdf_values(unsigned char* data, unsigned int len)
+{
+  membuf mb((char*)data, (char*)(data + len));
+  std::istream in(&mb);
+  return read_action_pdf_values(in);
+}
+
 struct test_data
 {
   unsigned char* model;
@@ -83,11 +107,12 @@ test_data get_test_data(const char* model_filename)
   TEST_DATA(model_filename, regression_data_no_constant);
   TEST_DATA(model_filename, regression_data_ignore_linear);
   TEST_DATA(model_filename, multiclass_data_4);
-  TEST_DATA(model_filename, cb_data_epsilon_0_skype_jb);
+  // TEST_DATA(model_filename, cb_data_epsilon_0_skype_jb);
   TEST_DATA(model_filename, cb_data_5);
   TEST_DATA(model_filename, cb_data_6);
   TEST_DATA(model_filename, cb_data_7);
   TEST_DATA(model_filename, cb_data_8);
+  TEST_DATA(model_filename, cats);
 
   return td;
 }
@@ -97,6 +122,8 @@ void run_predict_in_memory(
     const char* model_filename, const char* data_filename, const char* prediction_reference_filename)
 {
   std::vector<float> preds;
+  std::vector<float> cats_actions;
+  std::vector<float> cats_pdf_values;
 
   vw_predict<W> vw;
   // if files would be available
@@ -107,7 +134,7 @@ void run_predict_in_memory(
   float score;
   if (!strcmp(data_filename, "regression_data_1.txt"))
   {
-    safe_example_predict ex[2];
+    example_predict ex[2];
     // 1 |0 0:1
     example_predict_builder b0(&ex[0], (namespace_index)0);
     b0.push_feature(0, 1.f);
@@ -123,7 +150,7 @@ void run_predict_in_memory(
   }
   else if (!strcmp(data_filename, "regression_data_2.txt"))
   {
-    safe_example_predict ex[2];
+    example_predict ex[2];
     // 1 |0 0:1 |a 0:2
     example_predict_builder b00(&ex[0], (namespace_index)0);
     b00.push_feature(0, 1.f);
@@ -141,7 +168,7 @@ void run_predict_in_memory(
   }
   else if (!strcmp(data_filename, "regression_data_3.txt"))
   {
-    safe_example_predict ex[2];
+    example_predict ex[2];
     // 1 |a 0:1 |b 2:2
     example_predict_builder b0a(&ex[0], "a");
     b0a.push_feature(0, 1.f);
@@ -161,7 +188,7 @@ void run_predict_in_memory(
   }
   else if (!strcmp(data_filename, "regression_data_4.txt"))
   {
-    safe_example_predict ex[2];
+    example_predict ex[2];
     // 1 |a 0:1 |b 2:2 |c 3:3 |d 4:4
     example_predict_builder b0a(&ex[0], "a");
     b0a.push_feature(0, 1.f);
@@ -189,7 +216,7 @@ void run_predict_in_memory(
   }
   else if (!strcmp(data_filename, "regression_data_7.txt"))
   {
-    safe_example_predict ex[2];
+    example_predict ex[2];
     // 1 |a x:1 |b y:2
     example_predict_builder b0a(&ex[0], "a");
     b0a.push_feature_string("x", 1.f);
@@ -207,13 +234,168 @@ void run_predict_in_memory(
       preds.push_back(score);
     }
   }
+  else if (!strcmp(data_filename, "cats.txt"))
+  {
+    example ex[9];
+    {
+      // ca 185.121:0.657567:6.20426e-05 | 18-25 4 C 0 0 1 2 15 M
+      example_predict_builder b0a(&ex[0], (char*)" ");
+      b0a.push_feature_string((char*)"18-25", 1.f);
+      b0a.push_feature(4, 1.f);
+      b0a.push_feature_string((char*)"C", 1.f);
+      b0a.push_feature(0, 1.f);
+      b0a.push_feature(0, 1.f);
+      b0a.push_feature(1, 1.f);
+      b0a.push_feature(2, 1.f);
+      b0a.push_feature(15, 1.f);
+      b0a.push_feature_string((char*)"M", 1.f);
+    }
+
+    {
+      // ca 772.592:0.458316:6.20426e-05 | 18-25 4 C 4+ 0 1 2 15 M
+      example_predict_builder b0a(&ex[1], (char*)" ");
+      b0a.push_feature_string((char*)"18-25", 1.f);
+      b0a.push_feature(4, 1.f);
+      b0a.push_feature_string((char*)"C", 1.f);
+      b0a.push_feature_string((char*)"4+", 1.f);
+      b0a.push_feature(0, 1.f);
+      b0a.push_feature(1, 1.f);
+      b0a.push_feature(2, 1.f);
+      b0a.push_feature(15, 1.f);
+      b0a.push_feature_string((char*)"M", 1.f);
+    }
+
+    {
+      // ca 15140.6:0.31791:6.20426e-05 | 26-35 6 B 4+ 0 1 8 17 M
+      example_predict_builder b0a(&ex[2], (char*)" ");
+      b0a.push_feature_string((char*)"26-35", 1.f);
+      b0a.push_feature(6, 1.f);
+      b0a.push_feature_string((char*)"B", 1.f);
+      b0a.push_feature_string((char*)"4+", 1.f);
+      b0a.push_feature(0, 1.f);
+      b0a.push_feature(1, 1.f);
+      b0a.push_feature(8, 1.f);
+      b0a.push_feature(17, 1.f);
+      b0a.push_feature_string((char*)"M", 1.f);
+    }
+
+    {
+      // ca 14122:0.0199798:6.20426e-05 | 26-35 2 B 4+ 1 3 4 5 M
+      example_predict_builder b0a(&ex[3], (char*)" ");
+      b0a.push_feature_string((char*)"26-35", 1.f);
+      b0a.push_feature(2, 1.f);
+      b0a.push_feature_string((char*)"B", 1.f);
+      b0a.push_feature_string((char*)"4+", 1.f);
+      b0a.push_feature(1, 1.f);
+      b0a.push_feature(3, 1.f);
+      b0a.push_feature(4, 1.f);
+      b0a.push_feature(5, 1.f);
+      b0a.push_feature_string((char*)"M", 1.f);
+    }
+
+    {
+      // ca 11941.3:0.323547:6.20426e-05 | 55+ 17 C 1 0 1 6 8 M
+      example_predict_builder b0a(&ex[4], (char*)" ");
+      b0a.push_feature_string((char*)"55+", 1.f);
+      b0a.push_feature(17, 1.f);
+      b0a.push_feature_string((char*)"C", 1.f);
+      b0a.push_feature(1, 1.f);
+      b0a.push_feature(0, 1.f);
+      b0a.push_feature(1, 1.f);
+      b0a.push_feature(6, 1.f);
+      b0a.push_feature(8, 1.f);
+      b0a.push_feature_string((char*)"M", 1.f);
+    }
+
+    { 
+      // ca 15625.2:0.354757:6.20426e-05 | 26-35 7 A 1 0 5 8 12 M
+      example_predict_builder b0a(&ex[5], (char*)" ");
+      b0a.push_feature_string((char*)"26-35", 1.f);
+      b0a.push_feature(7, 1.f);
+      b0a.push_feature_string((char*)"A", 1.f);
+      b0a.push_feature(1, 1.f);
+      b0a.push_feature(0, 1.f);
+      b0a.push_feature(5, 1.f);
+      b0a.push_feature(8, 1.f);
+      b0a.push_feature(12, 1.f);
+      b0a.push_feature_string((char*)"M", 1.f);
+    }
+
+    {
+      // ca 13530:0.0975435:6.20426e-05 | 26-35 1 B 3 0 1 2 14 F
+      example_predict_builder b0a(&ex[6], (char*)" ");
+      b0a.push_feature_string((char*)"26-35", 1.f);
+      b0a.push_feature(1, 1.f);
+      b0a.push_feature_string((char*)"B", 1.f);
+      b0a.push_feature(3, 1.f);
+      b0a.push_feature(0, 1.f);
+      b0a.push_feature(1, 1.f);
+      b0a.push_feature(2, 1.f);
+      b0a.push_feature(14, 1.f);
+      b0a.push_feature_string((char*)"F", 1.f);
+    }
+
+    {
+      // ca 12715.1:0.168545:6.20426e-05 | 0-17 0 C 1 0 5 8 18 M
+      example_predict_builder b0a(&ex[7], (char*)" ");
+      b0a.push_feature_string((char*)"0-17", 1.f);
+      b0a.push_feature(0, 1.f);
+      b0a.push_feature_string((char*)"C", 1.f);
+      b0a.push_feature(1, 1.f);
+      b0a.push_feature(0, 1.f);
+      b0a.push_feature(5, 1.f);
+      b0a.push_feature(8, 1.f);
+      b0a.push_feature(18, 1.f);
+      b0a.push_feature_string((char*)"M", 1.f);
+    }
+
+    {
+      // ca 3111.9:0.320602:6.20426e-05 | 26-35 14 B 3 0 3 4 5 F
+      example_predict_builder b0a(&ex[8], (char*)" ");
+      b0a.push_feature_string((char*)"26-35", 1.f);
+      b0a.push_feature(14, 1.f);
+      b0a.push_feature_string((char*)"B", 1.f);
+      b0a.push_feature(3, 1.f);
+      b0a.push_feature(0, 1.f);
+      b0a.push_feature(3, 1.f);
+      b0a.push_feature(4, 1.f);
+      b0a.push_feature(5, 1.f);
+      b0a.push_feature_string((char*)"F", 1.f);
+    }
+
+    for (auto& e : ex)
+    {
+      float action = 0;
+      float pdf_value = 0;
+      ASSERT_EQ(S_VW_PREDICT_OK, vw.predict_cats(&e, action, pdf_value));
+      cats_actions.push_back(action);
+      cats_pdf_values.push_back(pdf_value);
+    }
+  }
+  
   else
     FAIL() << "Unknown data file: " << data_filename;
 
-  // compare output
-  std::vector<float> preds_expected = read_floats(td.pred, td.pred_len);
+  if (!strcmp(data_filename, "cats.txt"))
+  {
+    // compare output
+    auto preds_expected = read_action_pdf_values(td.pred, td.pred_len);
 
-  EXPECT_THAT(preds, Pointwise(FloatNearPointwise(1e-5f), preds_expected));
+    const float FLOAT_TOL = 0.1f;
+
+    auto actual_actions = std::get<0>(preds_expected);
+    auto actual_pdf_values = std::get<1>(preds_expected);
+
+    EXPECT_THAT(cats_actions, Pointwise(FloatNearPointwise(FLOAT_TOL), actual_actions));
+    EXPECT_THAT(cats_pdf_values, Pointwise(FloatNearPointwise(FLOAT_TOL), actual_pdf_values));
+  }
+  else
+  {
+    // compare output
+    std::vector<float> preds_expected = read_floats(td.pred, td.pred_len);
+
+    EXPECT_THAT(preds, Pointwise(FloatNearPointwise(1e-5f), preds_expected));
+  }
 }
 
 enum PredictParamWeightType
@@ -267,7 +449,8 @@ std::vector<PredictParam> GenerateTestParams()
       {"regression_data_4", "regression_data_4.txt", "regression_data_4.pred", PredictParamWeightType::All},
       {"regression_data_5", "regression_data_4.txt", "regression_data_5.pred", PredictParamWeightType::All},
       {"regression_data_6", "regression_data_3.txt", "regression_data_6.pred", PredictParamWeightType::Sparse},
-      {"regression_data_7", "regression_data_7.txt", "regression_data_7.pred", PredictParamWeightType::All}};
+      {"regression_data_7", "regression_data_7.txt", "regression_data_7.pred", PredictParamWeightType::All},
+      {"cats", "cats.txt", "cats.pred", PredictParamWeightType::Dense}};
 
   for (int i = 0; i < sizeof(predict_params) / sizeof(PredictParam); i++)
   {
@@ -352,13 +535,13 @@ TEST(VowpalWabbitSlim, multiclass_data_4)
 
   std::vector<float> out_scores;
 
-  safe_example_predict shared;
+  example_predict shared;
   // shared |a 0:1 5:12
   example_predict_builder bs(&shared, "a");
   bs.push_feature(0, 1.f);
   bs.push_feature(5, 12.f);
 
-  safe_example_predict ex[3];
+  example_predict ex[3];
   // 1:1.0 |b 0:1
   example_predict_builder b0(&ex[0], "b");
   b0.push_feature(0, 1.f);
@@ -399,7 +582,7 @@ void cb_data_epsilon_0_skype_jb_test_runner(int call_type, int modality, int net
 
   // push actions
   const int min_delay_actions = 10;
-  safe_example_predict actions[min_delay_actions];
+  example_predict actions[min_delay_actions];
   for (int i = 0; i < min_delay_actions; i++)
   {
     vw_slim::example_predict_builder bOe(&actions[i], "80");
@@ -433,7 +616,7 @@ TEST(VowpalWabbitSlim, interaction_num_bits_bug)
   EXPECT_EQ(result, 0);
 
   // we have loaded the model and can push the features
-  safe_example_predict features;
+  example_predict features;
 
   // Test with the single namespace.
   vw_slim::example_predict_builder bOa(&features, "Features", vw.feature_index_num_bits());
@@ -444,7 +627,7 @@ TEST(VowpalWabbitSlim, interaction_num_bits_bug)
 
   const int MINDELAYACTIONS = 10;
   // push actions
-  safe_example_predict actions[MINDELAYACTIONS];
+  example_predict actions[MINDELAYACTIONS];
   for (int i = 0; i < MINDELAYACTIONS; i++)
   {
     vw_slim::example_predict_builder bOe(&actions[i], "80");
@@ -462,60 +645,54 @@ TEST(VowpalWabbitSlim, interaction_num_bits_bug)
   EXPECT_EQ(rankings[0], 3);
 }
 
-TEST(VowpalWabbitSlim, cb_data_epsilon_0_skype_jb)
+// TEST(VowpalWabbitSlim, cb_data_epsilon_0_skype_jb)
+// {
+//   // Since the model is epsilon=0, the first entry should always be 0.
+//   std::vector<float> pdf_expected = {1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+
+//   // {0, 1, 2, 0} => 1
+//   std::vector<int> ranking_expected = {1, 0, 2, 3, 4, 5, 7, 6, 8, 9};
+//   cb_data_epsilon_0_skype_jb_test_runner(0, 1, 2, 0, ranking_expected, pdf_expected);
+
+//   // {0, 1, 4, 0} => 1
+//   ranking_expected = {1, 0, 2, 3, 4, 5, 6, 8, 7, 9};
+//   cb_data_epsilon_0_skype_jb_test_runner(0, 1, 4, 0, ranking_expected, pdf_expected);
+
+//   // {0, 0, 2, 0} => 1
+//   ranking_expected = {1, 2, 0, 3, 4, 5, 6, 7, 8, 9};
+//   cb_data_epsilon_0_skype_jb_test_runner(0, 0, 2, 0, ranking_expected, pdf_expected);
+
+//   // {0, 0, 4, 0} => 1
+//   ranking_expected = {1, 3, 2, 0, 4, 6, 5, 8, 7, 9};
+//   cb_data_epsilon_0_skype_jb_test_runner(0, 0, 4, 0, ranking_expected, pdf_expected);
+
+//   // {2, 0, 4, 0} => 3
+//   ranking_expected = {3, 1, 0, 2, 5, 4, 7, 6, 8, 9};
+//   cb_data_epsilon_0_skype_jb_test_runner(2, 0, 4, 0, ranking_expected, pdf_expected);
+
+//   // {0, 1, 999, 0} => 2
+//   ranking_expected = {2, 4, 6, 1, 0, 5, 3, 7, 8, 9};
+//   cb_data_epsilon_0_skype_jb_test_runner(0, 1, 999, 0, ranking_expected, pdf_expected);
+
+//   // {0, 0, 999, 0} => 2
+//   ranking_expected = {2, 4, 6, 1, 3, 5, 0, 7, 8, 9};
+//   cb_data_epsilon_0_skype_jb_test_runner(0, 0, 999, 0, ranking_expected, pdf_expected);
+
+//   // {2, 0, 999, 0} => 2
+//   ranking_expected = {2, 5, 4, 3, 6, 1, 0, 7, 8, 9};
+//   cb_data_epsilon_0_skype_jb_test_runner(2, 0, 999, 0, ranking_expected, pdf_expected);
+
+//   // {999, 0, 4, 0} => 1
+//   ranking_expected = {0, 1, 4, 2, 6, 3, 8, 7, 5, 9};
+//   cb_data_epsilon_0_skype_jb_test_runner(999, 0, 4, 0, ranking_expected, pdf_expected);
+
+//   // {999, 0, 2, 0} => 2
+//   ranking_expected = {0, 1, 4, 2, 7, 3, 6, 8, 5, 9};
+//   cb_data_epsilon_0_skype_jb_test_runner(999, 0, 2, 0, ranking_expected, pdf_expected);
+// }
+
+void generate_cb_data_5(example_predict& shared, example_predict* ex)
 {
-  // Since the model is epsilon=0, the first entry should always be 0.
-  std::vector<float> pdf_expected = {1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-
-  // {0, 1, 2, 0} => 1
-  std::vector<int> ranking_expected = {1, 0, 2, 3, 4, 5, 7, 6, 8, 9};
-  cb_data_epsilon_0_skype_jb_test_runner(0, 1, 2, 0, ranking_expected, pdf_expected);
-
-  // {0, 1, 4, 0} => 1
-  ranking_expected = {1, 0, 2, 3, 4, 5, 6, 8, 7, 9};
-  cb_data_epsilon_0_skype_jb_test_runner(0, 1, 4, 0, ranking_expected, pdf_expected);
-
-  // {0, 0, 2, 0} => 1
-  ranking_expected = {1, 2, 0, 3, 4, 5, 6, 7, 8, 9};
-  cb_data_epsilon_0_skype_jb_test_runner(0, 0, 2, 0, ranking_expected, pdf_expected);
-
-  // {0, 0, 4, 0} => 1
-  ranking_expected = {1, 3, 2, 0, 4, 6, 5, 8, 7, 9};
-  cb_data_epsilon_0_skype_jb_test_runner(0, 0, 4, 0, ranking_expected, pdf_expected);
-
-  // {2, 0, 4, 0} => 3
-  ranking_expected = {3, 1, 0, 2, 5, 4, 7, 6, 8, 9};
-  cb_data_epsilon_0_skype_jb_test_runner(2, 0, 4, 0, ranking_expected, pdf_expected);
-
-  // {0, 1, 999, 0} => 2
-  ranking_expected = {2, 4, 6, 1, 0, 5, 3, 7, 8, 9};
-  cb_data_epsilon_0_skype_jb_test_runner(0, 1, 999, 0, ranking_expected, pdf_expected);
-
-  // {0, 0, 999, 0} => 2
-  ranking_expected = {2, 4, 6, 1, 3, 5, 0, 7, 8, 9};
-  cb_data_epsilon_0_skype_jb_test_runner(0, 0, 999, 0, ranking_expected, pdf_expected);
-
-  // {2, 0, 999, 0} => 2
-  ranking_expected = {2, 5, 4, 3, 6, 1, 0, 7, 8, 9};
-  cb_data_epsilon_0_skype_jb_test_runner(2, 0, 999, 0, ranking_expected, pdf_expected);
-
-  // {999, 0, 4, 0} => 1
-  ranking_expected = {0, 1, 4, 2, 6, 3, 8, 7, 5, 9};
-  cb_data_epsilon_0_skype_jb_test_runner(999, 0, 4, 0, ranking_expected, pdf_expected);
-
-  // {999, 0, 2, 0} => 2
-  ranking_expected = {0, 1, 4, 2, 7, 3, 6, 8, 5, 9};
-  cb_data_epsilon_0_skype_jb_test_runner(999, 0, 2, 0, ranking_expected, pdf_expected);
-}
-
-void generate_cb_data_5(safe_example_predict& shared, safe_example_predict* ex)
-{
-  // clean features
-  shared.clear();
-  ex[0].clear();
-  ex[1].clear();
-  ex[2].clear();
-
   // shared |a 0:1 5:12
   example_predict_builder bs(&shared, "a");
   bs.push_feature(0, 1.f);
@@ -571,8 +748,8 @@ TEST_P(CBPredictTest, CBRunPredict)
   std::vector<float> pdf_expected = GetParam().pdf_expected;
   std::vector<float> histogram(pdf_expected.size() * pdf_expected.size());
 
-  safe_example_predict shared;
-  safe_example_predict ex[3];
+  example_predict shared;
+  example_predict ex[3];
 
   std::vector<int> ranking;
 
@@ -722,13 +899,13 @@ TEST(ColdStartModel, action_set_not_reordered)
   int result = vw.load(buffer_ptr.get(), length);
   EXPECT_EQ(result, 0);
 
-  safe_example_predict features;
+  example_predict features;
 
   vw_slim::example_predict_builder bOa(&features, "Features", vw.feature_index_num_bits());
   bOa.push_feature_string("f1", 1.f);
 
   const int NUM_ACTIONS = 5;
-  std::array<safe_example_predict, NUM_ACTIONS> actions;
+  std::array<example_predict, NUM_ACTIONS> actions;
   for (int i = 0; i < actions.size(); i++)
   {
     vw_slim::example_predict_builder bOe(&actions[i], "ActionFeatures");
@@ -746,3 +923,29 @@ TEST(ColdStartModel, action_set_not_reordered)
   EXPECT_GT(pdfs[0], pdfs[1]);
   EXPECT_THAT(rankings, ElementsAre(0, 1, 2, 3, 4));
 }
+
+
+// TEST(NewTest, CATS)
+// {
+//   vw_predict<dense_parameters> vw;
+//   test_data td = get_test_data("cats");
+//   ASSERT_EQ(0, vw.load((const char*)td.model, td.model_len));
+
+//   example ex[1];
+//   // 1:1.0 |b 0:1
+//   example_predict_builder b0(&ex[0], " ");
+//   b0.push_feature_string("room=Living_Room", 1.f);
+//   b0.push_feature_string("time_of_day=morning", 1.f);
+
+//   float action;
+//   float pdf_value;
+
+//   ASSERT_EQ(S_VW_PREDICT_OK, vw.predict_cats(&ex[0], action, pdf_value));
+
+//   // compare output
+//   std::vector<float> output_a = {action};
+//   std::vector<float> output_p = {pdf_value};
+  
+//   EXPECT_THAT(output_a, Pointwise(FloatNearPointwise(1e-5f), {0.0150219}));
+//   EXPECT_THAT(output_p, Pointwise(FloatNearPointwise(1e-5f), {0.0005}));
+// }

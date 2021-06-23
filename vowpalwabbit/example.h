@@ -79,7 +79,17 @@ VW_WARNING_DISABLE_DEPRECATED_USAGE
 struct example : public example_predict  // core example datatype.
 {
   example() = default;
-  ~example();
+  VW_WARNING_STATE_PUSH
+  VW_WARNING_DISABLE_DEPRECATED_USAGE
+  ~example()
+  {
+    if (passthrough)
+    {
+      delete passthrough;
+      passthrough = nullptr;
+    }
+  }
+  VW_WARNING_STATE_POP
 
   example(const example&) = delete;
   example& operator=(const example&) = delete;
@@ -97,7 +107,7 @@ struct example : public example_predict  // core example datatype.
   size_t example_counter = 0;
 
   // helpers
-  size_t num_features = 0;         // precomputed, cause it's fast&easy.
+  size_t num_features = 0;  // precomputed, cause it's fast&easy.
   size_t num_features_from_interactions = 0;
   float partial_prediction = 0.f;  // shared data for prediction.
   float updated_prediction = 0.f;  // estimated post-update prediction.

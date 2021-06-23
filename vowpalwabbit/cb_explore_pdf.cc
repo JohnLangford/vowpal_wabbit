@@ -3,10 +3,9 @@
 // license as described in the file LICENSE.
 
 #include "cb_explore_pdf.h"
-#include "error_constants.h"
-#include "api_status.h"
 #include "debug_log.h"
 #include "parse_args.h"
+#include "learner.h"
 
 // Aliases
 using std::endl;
@@ -23,73 +22,21 @@ namespace VW
 {
 namespace continuous_action
 {
-////////////////////////////////////////////////////
-// BEGIN sample_pdf reduction and reduction methods
-struct cb_explore_pdf
-{
-  int learn(example& ec, experimental::api_status* status);
-  int predict(example& ec, experimental::api_status* status);
-
-  void init(single_learner* p_base);
-
-  float epsilon;
-  float min_value;
-  float max_value;
-  bool first_only;
-
-private:
-  single_learner* _base = nullptr;
-};
-
 int cb_explore_pdf::learn(example& ec, experimental::api_status*)
 {
   _base->learn(ec);
   return VW::experimental::error_code::success;
 }
 
-int cb_explore_pdf::predict(example& ec, experimental::api_status*)
-{
-  const auto& reduction_features = ec._reduction_features.template get<VW::continuous_actions::reduction_features>();
-  if (first_only && !reduction_features.is_pdf_set() && !reduction_features.is_chosen_action_set())
-  {
-    // uniform random
-    ec.pred.pdf.push_back(
-        VW::continuous_actions::pdf_segment{min_value, max_value, static_cast<float>(1. / (max_value - min_value))});
-    return VW::experimental::error_code::success;
-  }
-  else if (first_only && reduction_features.is_pdf_set())
-  {
-    // pdf provided
-    ec.pred.pdf = reduction_features.pdf;
-    return VW::experimental::error_code::success;
-  }
-
-  _base->predict(ec);
-
-  continuous_actions::probability_density_function& _pred_pdf = ec.pred.pdf;
-  for (uint32_t i = 0; i < _pred_pdf.size(); i++)
-  { _pred_pdf[i].pdf_value = _pred_pdf[i].pdf_value * (1 - epsilon) + epsilon / (max_value - min_value); }
-  return VW::experimental::error_code::success;
-}
-
-void cb_explore_pdf::init(single_learner* p_base) { _base = p_base; }
-
 // Free function to tie function pointers to reduction class methods
-template <bool is_learn>
-void predict_or_learn(cb_explore_pdf& reduction, single_learner&, example& ec)
+void learn(cb_explore_pdf& reduction, single_learner&, example& ec)
 {
   experimental::api_status status;
-  if (is_learn)
-    reduction.learn(ec, &status);
-  else
-    reduction.predict(ec, &status);
+  reduction.learn(ec, &status);
 
   if (status.get_error_code() != VW::experimental::error_code::success)
   { VW_DBG(ec) << status.get_error_msg() << endl; }
 }
-
-// END sample_pdf reduction and reduction methods
-////////////////////////////////////////////////////
 
 // Setup reduction in stack
 LEARNER::base_learner* cb_explore_pdf_setup(config::options_i& options, vw& all)
@@ -131,8 +78,8 @@ LEARNER::base_learner* cb_explore_pdf_setup(config::options_i& options, vw& all)
   p_reduction->max_value = max;
   p_reduction->first_only = first_only;
 
-  auto* l = make_reduction_learner(std::move(p_reduction), as_singleline(p_base), predict_or_learn<true>,
-      predict_or_learn<false>, all.get_setupfn_name(cb_explore_pdf_setup))
+  auto* l = make_reduction_learner(
+      std::move(p_reduction), as_singleline(p_base), learn, predict, all.get_setupfn_name(cb_explore_pdf_setup))
                 .set_prediction_type(prediction_type_t::pdf)
                 .set_label_type(label_type_t::cb)
                 .build();

@@ -17,6 +17,7 @@
 #include "vw_allreduce.h"
 #include "named_labels.h"
 #include "shared_data.h"
+#include "vw_string_view.h"
 #ifdef BUILD_FLATBUFFERS
 #  include "parser/flatbuffer/parse_example_flatbuffer.h"
 #endif

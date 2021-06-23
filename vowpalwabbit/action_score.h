@@ -4,9 +4,17 @@
 
 #pragma once
 
-#include "io/io_adapter.h"
 #include <iterator>
 #include "v_array.h"
+
+// forward declaration
+namespace VW
+{
+namespace io
+{
+struct writer;
+}
+}  // namespace VW
 
 namespace ACTION_SCORE
 {

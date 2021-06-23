@@ -6,10 +6,18 @@
 #pragma once
 
 #include "v_array.h"
-#include "io/io_adapter.h"
 #include <iomanip>
 #include <iostream>
 #include <vector>
+
+// forward declaration
+namespace VW
+{
+namespace io
+{
+struct writer;
+}
+}  // namespace VW
 
 namespace ACTION_SCORE
 {

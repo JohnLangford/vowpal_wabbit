@@ -400,6 +400,10 @@ if(BUILD_FLATBUFFERS)
   target_compile_definitions(vw PUBLIC BUILD_FLATBUFFERS)
 endif()
 
+if(BUILD_SLIM_VW)
+  target_compile_definitions(vw PUBLIC SLIM_VW_ON)
+endif()
+
 
 add_library(VowpalWabbit::vw ALIAS vw)
 

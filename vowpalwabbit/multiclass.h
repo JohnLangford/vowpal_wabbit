@@ -14,9 +14,15 @@ struct label_t
   uint32_t label;
   float weight;
 
-  label_t();
-  label_t(uint32_t label, float weight);
-  void reset_to_default();
+  label_t() { reset_to_default(); }
+
+  label_t(uint32_t label, float weight) : label(label), weight(weight) {}
+
+  void reset_to_default()
+  {
+    label = std::numeric_limits<uint32_t>::max();
+    weight = 1.f;
+  }
 };
 
 extern label_parser mc_label;

@@ -84,4 +84,10 @@ bool find_opt_int(std::string const& command_line_args, std::string arg_name, in
 {
   return find_opt_parse<int, int, atoi>(command_line_args, arg_name, value);
 }
+
+bool find_opt_uint64_t(std::string const& command_line_args, std::string arg_name, uint64_t& value)
+{
+  return find_opt_parse<uint64_t, int, atoi>(command_line_args, arg_name, value);
+}
+
 }  // namespace vw_slim

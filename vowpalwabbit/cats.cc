@@ -37,13 +37,6 @@ namespace cats
 {
 ////////////////////////////////////////////////////
 // BEGIN cats reduction and reduction methods
-// Pass through
-int cats::predict(example& ec, experimental::api_status*)
-{
-  VW_DBG(ec) << "cats::predict(), " << features_to_string(ec) << endl;
-  _base->predict(ec);
-  return VW::experimental::error_code::success;
-}
 
 // Pass through
 int cats::learn(example& ec, experimental::api_status* status = nullptr)
@@ -81,17 +74,11 @@ float cats::get_loss(const VW::cb_continuous::continuous_label& cb_cont_costs, f
   return loss;
 }
 
-cats::cats(single_learner* p_base) : _base(p_base) {}
-
 // Free function to tie function pointers to reduction class methods
-template <bool is_learn>
-void predict_or_learn(cats& reduction, single_learner&, example& ec)
+void learn(cats& reduction, single_learner&, example& ec)
 {
   experimental::api_status status;
-  if (is_learn)
-    reduction.learn(ec, &status);
-  else
-    reduction.predict(ec, &status);
+  reduction.learn(ec, &status);
 
   if (status.get_error_code() != VW::experimental::error_code::success)
   { VW_DBG(ec) << status.get_error_msg() << endl; }
@@ -187,24 +174,19 @@ LEARNER::base_learner* setup(options_i& options, vw& all)
   if (!options.was_supplied("sample_pdf")) options.insert("sample_pdf", "");
   options.insert("cats_pdf", std::to_string(num_actions));
 
-  if (!options.was_supplied("bandwidth"))
+  bool bandwidth_was_supplied = options.was_supplied("bandwidth");
+  if (!bandwidth_was_supplied)
   {
-    float leaf_width = (max_value - min_value) / (num_actions);  // aka unit range
-    float half_leaf_width = leaf_width / 2.f;
-    bandwidth = half_leaf_width;
-    *(all.trace_message) << "Bandwidth was not supplied, setting default to half the continuous action unit range: "
-                         << bandwidth << std::endl;
+    *(all.trace_message) << "Bandwidth was not supplied, default will be set to half the continuous action unit range"
+                         << std::endl;
   }
 
   LEARNER::base_learner* p_base = setup_base(options, all);
-  auto p_reduction = scoped_calloc_or_throw<cats>(as_singleline(p_base));
-  p_reduction->num_actions = num_actions;
-  p_reduction->bandwidth = bandwidth;
-  p_reduction->max_value = max_value;
-  p_reduction->min_value = min_value;
+  auto p_reduction = scoped_calloc_or_throw<cats>(
+      as_singleline(p_base), num_actions, bandwidth, min_value, max_value, bandwidth_was_supplied);
 
-  LEARNER::learner<cats, example>& l = init_learner(p_reduction, as_singleline(p_base), predict_or_learn<true>,
-      predict_or_learn<false>, 1, prediction_type_t::action_pdf_value, all.get_setupfn_name(setup), true);
+  LEARNER::learner<cats, example>& l = init_learner(p_reduction, as_singleline(p_base), learn, predict, 1,
+      prediction_type_t::action_pdf_value, all.get_setupfn_name(setup), true);
 
   l.set_finish_example(finish_example);
 
