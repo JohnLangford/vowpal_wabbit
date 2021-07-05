@@ -91,6 +91,12 @@ public:
     return *this;
   }
 
+  inline iterator_t& operator+=(int i)
+  {
+    _index += i;
+    return *this;
+  }
+
   inline IndexT index() { return _ns_features->_namespace_indices[_index]; }
   inline HashT hash() { return _ns_features->_namespace_hashes[_index]; }
 
@@ -223,6 +229,8 @@ struct namespaced_features
 
   // Wil contains duplicates if there exists more than one feature group per index.
   const std::vector<namespace_index>& get_indices() const;
+  const uint64_t& get_last_hash() const;
+
   namespace_index get_index_for_hash(uint64_t hash) const;
 
   // The following are experimental and may be superseded with namespace_index_begin_proxy

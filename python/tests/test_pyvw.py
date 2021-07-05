@@ -376,6 +376,163 @@ def test_example_features():
     ex.push_namespace(ns2)
     assert ex.pop_namespace()
 
+def test_num_namespaces_full_namespace():
+    model = vw(quiet=True)
+    ex = model.example('|da 1 3 2 |d more feats |db 3:2 4:3 |apple 10:11 12:13 |app 1 2')
+    assert ex.num_namespaces() == 6
+
+def test_namespace_full_namespace():
+    model = vw(quiet=True)
+    ex = model.example('|da 1 3 2 |d more feats |db 3:2 4:3 |apple 10:11 12:13 |app 1 2')
+    assert ex.namespace(0) == ord('d')
+    assert ex.namespace(1) == ord('d')
+    assert ex.namespace(2) == ord('d')
+    assert ex.namespace(3) == ord('a')
+    assert ex.namespace(4) == ord('a')
+    assert ex.namespace(5) == 128
+
+def test_num_features_in_full_namespace():
+    model = vw(quiet=True)
+    ex = model.example('|da 1 3 2 |d more feats |db 3:2 4:3 |apple 10:11 12:13 |app 1 2')
+    assert ex.num_features_in('da') == 3
+    assert ex.num_features_in('db') == 2
+    assert ex.num_features_in('d') == 2
+    assert ex.num_features_in('a') == 4
+    assert ex.num_features_in('app') == 2
+
+def test_feature_full_namespace():
+    model = vw(quiet=True)
+    ex = model.example('|da 1 3 2 |d more feats |db 3:2 4:3 |apple 10:11 12:13 |app 1 2')
+    assert ex.feature('a', 0) == ex.feature('apple', 0)
+    assert ex.feature('a', 1) == ex.feature('apple', 1)
+    assert ex.feature('d', 0) != ex.feature('da', 0)
+    assert ex.feature('d', 1) != ex.feature('da', 1)
+
+def test_feature_weight_full_namespace():
+    model = vw(quiet=True)
+    ex = model.example('|da 1 3 2 |d more feats |db 3:2 4:3 |apple 10:11 12:13 |app 1 2')
+    assert ex.feature_weight('d', 0) == 1
+    assert ex.feature_weight('da', 0) == 1
+    assert ex.feature_weight('db', 0) == 2
+    assert ex.feature_weight('db', 1) == 3
+    assert ex.feature_weight('a', 1) == 13
+    assert ex.feature_weight('app', 1) == 1
+
+def test_sum_feat_sq_full_namespace():
+    model = vw(quiet=True)
+    ex = model.example('|da 1 3 2 |d more feats |db 3:2 4:3 |apple 10:11 12:13 |app 1 2')
+    assert ex.sum_feat_sq('da') == 3
+    assert ex.sum_feat_sq('db') == 13
+    assert ex.sum_feat_sq('d') == 2
+    assert ex.sum_feat_sq('a') == 292
+    assert ex.sum_feat_sq('apple') == 290
+
+def test_push_feature_full_namespace():
+    model = vw(quiet=True)
+    ex = model.example('|da 1 3 2 |d more feats |db 3:2 4:3 |apple 10:11 12:13 |app 1 2')
+    ex.push_feature('d', 100, 2)
+    assert ex.sum_feat_sq('d') == 6
+    assert ex.num_features_in('d') == 3
+    assert ex.num_features_in('da') == 3
+    ex.push_feature('a', 101, 2)
+    assert ex.sum_feat_sq('apple') == 294
+    assert ex.num_features_in('apple') == 3
+    assert ex.sum_feat_sq('app') == 2
+    assert ex.num_features_in('app') == 2
+
+def test_push_feature_list_namespace():
+    model = vw(quiet=True)
+    ex = model.example('1 |a two features |b more features here')
+    ex.push_features('xa', ['a', 'b'])
+    ex.push_features('xb', [('c', 2.), 'd'])
+    space_hash = model.hash_space('xa')
+    feat_hash  = model.hash_feature('a', space_hash)
+    ex.push_features('xa', [feat_hash])
+    assert ex.num_features_in('xa') == 3
+    assert ex.num_features_in('xb') == 2
+    assert ex.num_features_in('x') == 5
+    assert ex.sum_feat_sq('xa') == 3
+    assert ex.sum_feat_sq('xb') == 5
+    assert ex.sum_feat_sq('x') == 8
+
+def test_push_namespace_full_namespace():
+    # This function will call get_or_create_feature_group which will overwrite
+    # the constant namespace on the first run by default. This is why the
+    # number of namespaces will remain the same on the first run.
+    model = vw(quiet=True)
+    ex = model.example('|da 1 3 2 |d more feats |db 3:2 4:3 |apple 10:11 12:13 |app 1 2')
+    assert ex.num_namespaces() == 6
+    ex.push_namespace('new')
+    ex.push_feature('new',1,3)
+    assert ex.sum_feat_sq('new') == 9
+    assert ex.num_namespaces() == 6
+    ex.push_namespace('new2')
+    assert ex.num_namespaces() == 7
+    ex.push_namespace('new2')
+    assert ex.num_namespaces() == 7
+
+def test_ensure_namespace_exists_full_namespace():
+    model = vw(quiet=True)
+    ex = model.example('|da 1 3 2 |d more feats |db 3:2 4:3 |apple 10:11 12:13 |app 1 2')
+    assert ex.num_namespaces() == 6
+    ex.ensure_namespace_exists('new')
+    ex.push_feature('new',1,3)
+    assert ex.sum_feat_sq('new') == 9
+    assert ex.num_namespaces() == 6
+    ex.ensure_namespace_exists('new2')
+    assert ex.num_namespaces() == 7
+    ex.push_namespace('new2')
+    assert ex.num_namespaces() == 7
+
+def test_push_feature_dict_full_namespace():
+    model = vw(quiet=True)
+    ex = model.example({'da':[1, 3, 2], 'd':['more','feats'], 'db':[(3,2), (4,3)], 'apple':[(10, 11), (12,13)], 'app':[1, 2]})
+    assert ex.num_features_in('da') == 3 
+    assert ex.num_features_in('d') == 2
+    assert ex.sum_feat_sq('a') == 292
+
+def test_pop_feature_full_namespace():
+    model = vw(quiet=True)
+    ex = model.example('|da 1 3 2 |d more feats |db 3:2 4:3 |apple 10:11 12:13 |app 1 2')
+    ex.pop_feature('d')
+    assert ex.sum_feat_sq('da') == 3
+    assert ex.sum_feat_sq('d') == 1
+    ex.pop_feature('da')
+    assert ex.sum_feat_sq('da') == 2
+    ex.pop_feature('a')
+    assert ex.sum_feat_sq('apple') == 121
+
+def test_erase_namespace_full_namespace():
+    model = vw(quiet=True)
+    ex = model.example('|da 1 3 2 |d more feats |db 3:2 4:3 |apple 10:11 12:13 |app 1 2')
+    ex.erase_namespace('da')
+    assert ex.num_namespaces() == 5
+    ex.erase_namespace('d')
+    assert ex.num_namespaces() == 4
+    ex.erase_namespace('a')
+    assert ex.num_namespaces() == 2
+    ex.erase_namespace('a')
+    assert ex.num_namespaces() == 2
+
+def test_pop_namespace_full_namespace():
+    model = vw(quiet=True)
+    ex = model.example('|da 1 3 2 |d more feats |db 3:2 4:3 |apple 10:11 12:13 |app 1 2')
+    assert ex.num_namespaces() == 6
+    assert ex.sum_feat_sq('a') == 292
+    # Note that this will call unsetup_example and remove the constant namespace
+    ex.pop_namespace()
+    assert ex.sum_feat_sq('a') == 290
+    assert ex.num_namespaces() == 4
+    ex.pop_namespace()
+    assert ex.num_namespaces() == 3
+    ex.pop_namespace()
+    assert ex.num_namespaces() == 2
+    ex.pop_namespace()
+    assert ex.num_namespaces() == 1
+    ex.pop_namespace()
+    assert ex.num_namespaces() == 0
+    ex.pop_namespace()
+    assert ex.num_namespaces() == 0
 
 def test_get_weight_name():
     model = vw(quiet=True)

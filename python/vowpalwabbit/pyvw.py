@@ -851,7 +851,7 @@ class vw(pylibvw.vw):
 
 class namespace_id:
     """The namespace_id class is simply a wrapper to convert between
-    hash spaces referred to by character (eg 'x') versus their index
+    hash spaces referred to by string (eg 'feats') versus their index
     in a particular example. Mostly used internally, you shouldn't
     really need to touch this."""
 
@@ -866,7 +866,7 @@ class namespace_id:
         id : integer/str
             The id can either be an integer (in which case we take it to be an
             index into ex.indices[]) or a string (in which case we take
-            the first character as the namespace id).
+            the string as the namespace id).
 
         Returns
         -------
@@ -883,8 +883,8 @@ class namespace_id:
             if len(id) == 0:
                 id = " "
             self.id = None  # we don't know and we don't want to do the linear search required to find it
-            self.ns = id[0]
-            self.ord_ns = ord(self.ns)
+            self.ns = id
+            self.ord_ns = ord(self.ns[0])
         else:
             raise Exception(
                 "ns_to_characterord failed because id type is unknown: "
@@ -1283,7 +1283,7 @@ class example(pylibvw.example):
             i-th hashed feature-id in a given ns
         """
         ns = self.get_ns(ns)  # guaranteed to be a single character
-        f = pylibvw.example.feature(self, ns.ord_ns, i)
+        f = pylibvw.example.feature(self, ns.ns, i)
         if self.setup_done:
             f = (f - self.get_ft_offset()) // self.stride
         return f
@@ -1306,7 +1306,7 @@ class example(pylibvw.example):
         out : float
             weight(value) of the i-th feature of given ns
         """
-        return pylibvw.example.feature_weight(self, self.get_ns(ns).ord_ns, i)
+        return pylibvw.example.feature_weight(self, self.get_ns(ns).ns, i)
 
     def set_label_string(self, string):
         """Give this example a new label
@@ -1363,7 +1363,7 @@ class example(pylibvw.example):
         sum_sq : float
             Total sum feature-value squared of the given ns
         """
-        return pylibvw.example.sum_feat_sq(self, self.get_ns(ns).ord_ns)
+        return pylibvw.example.sum_feat_sq(self, self.get_ns(ns).ns)
 
     def num_features_in(self, ns):
         """Get the total number of features in a given namespace
@@ -1380,7 +1380,7 @@ class example(pylibvw.example):
         num_features : integer
             Total number of features in the given ns
         """
-        return pylibvw.example.num_features_in(self, self.get_ns(ns).ord_ns)
+        return pylibvw.example.num_features_in(self, self.get_ns(ns).ns)
 
     def get_feature_id(self, ns, feature, ns_hash=None):
         """Get the hashed feature id for a given feature in a given
@@ -1433,7 +1433,7 @@ class example(pylibvw.example):
         """
         if self.setup_done:
             self.unsetup_example()
-        pylibvw.example.push_hashed_feature(self, self.get_ns(ns).ord_ns, f, v)
+        pylibvw.example.push_hashed_feature(self, self.get_ns(ns).ns, f, v)
 
     def push_feature(self, ns, feature, v=1.0, ns_hash=None):
         """Add an unhashed feature to a given namespace
@@ -1471,7 +1471,7 @@ class example(pylibvw.example):
         """
         if self.setup_done:
             self.unsetup_example()
-        return pylibvw.example.pop_feature(self, self.get_ns(ns).ord_ns)
+        return pylibvw.example.pop_feature(self, self.get_ns(ns).ns)
 
     def push_namespace(self, ns):
         """Push a new namespace onto this example.
@@ -1487,7 +1487,7 @@ class example(pylibvw.example):
         """
         if self.setup_done:
             self.unsetup_example()
-        pylibvw.example.push_namespace(self, self.get_ns(ns).ord_ns)
+        pylibvw.example.push_namespace(self, self.get_ns(ns).ns)
 
     def pop_namespace(self):
         """Remove the top namespace from an example
@@ -1515,7 +1515,7 @@ class example(pylibvw.example):
         if self.setup_done:
             self.unsetup_example()
         return pylibvw.example.ensure_namespace_exists(
-            self, self.get_ns(ns).ord_ns
+            self, self.get_ns(ns).ns
         )
 
     def push_features(self, ns, featureList):
@@ -1550,7 +1550,7 @@ class example(pylibvw.example):
         ns = self.get_ns(ns)
         self.ensure_namespace_exists(ns)
         self.push_feature_list(
-            self.vw, ns.ord_ns, featureList
+            self.vw, ns.ns, featureList
         )  # much faster just to do it in C++
         # ns_hash = self.vw.hash_space( ns.ns )
         # for feature in featureList:

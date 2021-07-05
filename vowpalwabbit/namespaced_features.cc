@@ -9,6 +9,8 @@ using namespace VW;
 
 const std::vector<namespace_index>& namespaced_features::get_indices() const { return _namespace_indices; }
 
+const uint64_t& namespaced_features::get_last_hash() const { return _namespace_hashes.back(); }
+
 namespace_index namespaced_features::get_index_for_hash(uint64_t hash) const
 {
   auto it = std::find(_namespace_hashes.begin(), _namespace_hashes.end(), hash);
