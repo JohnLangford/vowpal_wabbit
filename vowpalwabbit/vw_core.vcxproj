@@ -246,6 +246,7 @@
     <ClInclude Include="queue.h" />
     <ClInclude Include="rand48.h" />
     <ClInclude Include="recall_tree.h" />
+    <ClInclude Include="red_python.h" />
     <ClInclude Include="sample_pdf.h" />
     <ClInclude Include="scorer.h" />
     <ClInclude Include="search_dep_parser.h" />
@@ -397,6 +398,7 @@
     <ClCompile Include="prob_dist_cont.cc" />
     <ClCompile Include="rand48.cc" />
     <ClCompile Include="recall_tree.cc" />
+    <ClCompile Include="red_python.cc" />
     <ClCompile Include="sample_pdf.cc" />
     <ClCompile Include="scorer.cc" />
     <ClCompile Include="search_dep_parser.cc" />

@@ -81,6 +81,7 @@ def helper_getting_started_example(which_cb):
     
     with open(path.join(helper_get_test_dir(), test_file), 'r') as file:
         actual = file.readlines()
+        assert len(actual) == len(output)
         for j, i in zip(actual, output):
             assert i == j, "line mismatch should be: " + j + " output: " + i
 

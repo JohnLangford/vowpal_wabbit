@@ -19,3 +19,6 @@ coverage:
 
 ignore:
   - "test"
+# tested via python tests
+  - "vowpalwabbit/red_python.cc"
+  - "vowpalwabbit/red_python.h"

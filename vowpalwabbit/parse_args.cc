@@ -92,6 +92,7 @@
 #include "cbzo.h"
 // #include "cntk.h"
 
+#include "red_python.h"
 #include "cats.h"
 #include "cats_pdf.h"
 #include "cb_explore_pdf.h"
@@ -1267,7 +1268,8 @@ void register_reductions(vw& all, std::vector<reduction_setup_fn>& reductions)
       {VW::cb_explore_adf::greedy::setup, "cb_explore_adf_greedy"},
       {VW::cb_explore_adf::regcb::setup, "cb_explore_adf_regcb"},
       {VW::shared_feature_merger::shared_feature_merger_setup, "shared_feature_merger"},
-      {generate_interactions_setup, "generate_interactions"}};
+      {red_python_setup, "custom_python_reduction"}, {red_python_multiline_setup, "custom_python_multi_reduction"},
+      {red_python_base_setup, "custom_python_base_reduction"}, {generate_interactions_setup, "generate_interactions"}};
 
   auto name_extractor = options_name_extractor();
   vw dummy_all;
@@ -1294,8 +1296,13 @@ void parse_reductions(options_i& options, vw& all)
 {
   std::vector<reduction_setup_fn> reductions;
 
+  bool python_base_reduction = false;
+
   // Base algorithms
-  reductions.push_back(GD::setup);
+  if (python_base_reduction)
+    reductions.push_back(red_python_base_setup);
+  else
+    reductions.push_back(GD::setup);  // always
   reductions.push_back(kernel_svm_setup);
   reductions.push_back(ftrl_setup);
   reductions.push_back(svrg_setup);
@@ -1361,6 +1368,8 @@ void parse_reductions(options_i& options, vw& all)
   reductions.push_back(VW::cb_explore_adf::first::setup);
   reductions.push_back(VW::cb_explore_adf::cover::setup);
   reductions.push_back(VW::cb_explore_adf::bag::setup);
+  // if (!python_base_reduction)
+  //   reductions.push_back(red_python_multiline_setup);
   reductions.push_back(cb_dro_setup);
   reductions.push_back(cb_sample_setup);
   reductions.push_back(explore_eval_setup);
@@ -1382,6 +1391,7 @@ void parse_reductions(options_i& options, vw& all)
   reductions.push_back(ExpReplay::expreplay_setup<'c', COST_SENSITIVE::cs_label>);
   reductions.push_back(Search::setup);
   reductions.push_back(audit_regressor_setup);
+  if (!python_base_reduction) reductions.push_back(red_python_setup);
   reductions.push_back(VW::metrics::metrics_setup);
 
   register_reductions(all, reductions);
@@ -1396,10 +1406,9 @@ ssize_t trace_message_wrapper_adapter(void* context, const char* buffer, size_t 
   return static_cast<ssize_t>(num_bytes);
 }
 
-vw& parse_args(
-    std::unique_ptr<options_i, options_deleter_type> options, trace_message_t trace_listener, void* trace_context)
+vw& parse_args(vw& all, std::unique_ptr<options_i, options_deleter_type> options, trace_message_t trace_listener,
+    void* trace_context)
 {
-  vw& all = *(new vw());
   all.options = std::move(options);
 
   if (trace_listener)
@@ -1763,20 +1772,12 @@ void print_enabled_reductions(vw& all)
   }
 }
 
-vw* initialize(
-    config::options_i& options, io_buf* model, bool skipModelLoad, trace_message_t trace_listener, void* trace_context)
-{
-  std::unique_ptr<options_i, options_deleter_type> opts(&options, [](VW::config::options_i*) {});
-
-  return initialize(std::move(opts), model, skipModelLoad, trace_listener, trace_context);
-}
-
-vw* initialize(std::unique_ptr<options_i, options_deleter_type> options, io_buf* model, bool skipModelLoad,
-    trace_message_t trace_listener, void* trace_context)
+vw* initialize_with_options(vw& all, std::unique_ptr<options_i, options_deleter_type> options, io_buf* model,
+    bool skipModelLoad, trace_message_t trace_listener, void* trace_context)
 {
   // Set up logger as early as possible
   logger::initialize_logger();
-  vw& all = parse_args(std::move(options), trace_listener, trace_context);
+  parse_args(all, std::move(options), trace_listener, trace_context);
 
   try
   {
@@ -1835,7 +1836,22 @@ vw* initialize(std::unique_ptr<options_i, options_deleter_type> options, io_buf*
   }
 }
 
-vw* initialize(std::string s, io_buf* model, bool skipModelLoad, trace_message_t trace_listener, void* trace_context)
+vw* initialize(std::unique_ptr<options_i, options_deleter_type> options, io_buf* model, bool skipModelLoad,
+    trace_message_t trace_listener, void* trace_context)
+{
+  vw& all = *(new vw());
+  return initialize_with_options(all, std::move(options), model, skipModelLoad, trace_listener, trace_context);
+}
+
+vw* initialize(
+    options_i& options, io_buf* model, bool skipModelLoad, trace_message_t trace_listener, void* trace_context)
+{
+  std::unique_ptr<options_i, options_deleter_type> opts(&options, [](VW::config::options_i*) {});
+  return initialize(std::move(opts), model, skipModelLoad, trace_listener, trace_context);
+}
+
+vw* initialize_with_reduction(std::string s, io_buf* model, bool skipModelLoad, trace_message_t trace_listener,
+    void* trace_context, std::unique_ptr<RED_PYTHON::ExternalBinding> ext_binding)
 {
   int argc = 0;
   char** argv = to_argv(s, argc);
@@ -1843,7 +1859,12 @@ vw* initialize(std::string s, io_buf* model, bool skipModelLoad, trace_message_t
 
   try
   {
-    ret = initialize(argc, argv, model, skipModelLoad, trace_listener, trace_context);
+    vw& all = *(new vw());
+    all.ext_binding = std::move(ext_binding);
+
+    std::unique_ptr<options_i, options_deleter_type> options(
+        new config::options_boost_po(argc, argv), [](VW::config::options_i* ptr) { delete ptr; });
+    ret = initialize_with_options(all, std::move(options), model, skipModelLoad, trace_listener, trace_context);
   }
   catch (...)
   {
@@ -1853,6 +1874,11 @@ vw* initialize(std::string s, io_buf* model, bool skipModelLoad, trace_message_t
 
   free_args(argc, argv);
   return ret;
+}
+
+vw* initialize(std::string s, io_buf* model, bool skipModelLoad, trace_message_t trace_listener, void* trace_context)
+{
+  return initialize_with_reduction(s, model, skipModelLoad, trace_listener, trace_context, nullptr);
 }
 
 vw* initialize_escaped(

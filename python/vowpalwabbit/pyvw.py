@@ -2,6 +2,7 @@
 """Python binding for pylibvw class"""
 
 from __future__ import division
+import abc
 import pylibvw
 import warnings
 
@@ -79,6 +80,78 @@ class VWOption:
                     return "--{} {}".format(self.name, self.value)
         else:
             return ''
+
+class Learner:
+    def __init__(self, vwCppBridge):
+        self.vwCppBridge = vwCppBridge
+
+    def learn(self, ec):
+        self.vwCppBridge.call_base_learner(ec, True)
+
+    def predict(self, ec):
+        self.vwCppBridge.call_base_learner(ec, False)
+
+    def multi_learn(self, examples, offset = 0, id = 0):
+        self.vwCppBridge.call_multi_learner(examples, True)
+
+    def multi_predict(self, examples, offset = 0, id = 0):
+        self.vwCppBridge.call_multi_learner(examples, False)
+
+class ModelIO:
+    def __init__(self, vwCppBridge):
+        self.vwCppBridge = vwCppBridge
+
+    # (char* data, size_t len, const char* read_message, bool read, std::stringstream& msg, bool text)
+    def read_write(self):
+        print("read and writing")
+
+# compatible with Python 2 *and* 3
+ABC = abc.ABCMeta('ABC', (object,), {'__slots__': ()})
+
+def no_impl(method):
+  method.no_impl = True
+  return method
+
+# End user (pyvw library consumer) will have to create a class that
+# inherits from Copperhead and implements the custom _predict() and
+# _learn(). Optionally the user can also implement _finish_example()
+# if needed. See test_pyreduction.py for examples
+"""Copperhead class"""
+class Copperhead(ABC):
+    @abc.abstractmethod
+    def _predict(self, ec, learner):
+        pass
+
+    @abc.abstractmethod
+    def _learn(self, ec, learner):
+        pass
+
+    # this method should be implemented only if needed
+    @no_impl
+    def _finish_example(self, ec):
+        pass
+
+    # this method should be implemented only if needed
+    # read and text are booleans
+    @no_impl
+    def _save_load(self, read, text, modelIO):
+        pass
+
+    def _save_load_convenience(self, read, text, vwbridge):
+        self._save_load(read, text, ModelIO(vwbridge))
+
+    # private functions end user
+    def _learn_convenience(self, ec, vwbridge):
+        self._learn(ec, Learner(vwbridge))
+
+    def _predict_convenience(self, ec, vwbridge):
+        self._predict(ec, Learner(vwbridge))
+
+    def _is_finish_example_implemented(self):
+        return not hasattr(self._finish_example, 'no_impl')
+
+    def _is_save_load_implemented(self):
+        return not hasattr(self._save_load, 'no_impl')
 
 class SearchTask:
     """Search task class"""
@@ -288,7 +361,7 @@ class vw(pylibvw.vw):
     finished = False
     log_fwd = None
 
-    def __init__(self, arg_str=None, enable_logging=False, **kw):
+    def __init__(self, arg_str=None, python_reduction=None, enable_logging=False, **kw):
         """Initialize the vw object.
 
         Parameters
@@ -341,11 +414,18 @@ class vw(pylibvw.vw):
         if enable_logging:
             self.log_fwd = log_forward()
             self.log_wrapper = pylibvw.vw_log(self.log_fwd)
+        else:
+            self.log_wrapper = None
 
-        if self.log_wrapper:
+        if python_reduction is None:
             super(vw, self).__init__(" ".join(l), self.log_wrapper)
         else:
-            super(vw, self).__init__(" ".join(l))
+            if issubclass(python_reduction, Copperhead):
+                self._py_reduction = python_reduction()
+                super(vw, self).__init__(" ".join(l), self.log_wrapper, self._py_reduction)
+                self._py_reduction.reduction_init(self)
+            else:
+                raise TypeError("The python_reduction argument must be a class that inherits from Copperhead")
         self.init = True
 
         # check to see if native parser needs to run

@@ -40,6 +40,7 @@
 #include "hash.h"
 #include "crossplat_compat.h"
 #include "error_reporting.h"
+#include "red_python.h"
 #include "constant.h"
 #include "rand48.h"
 #include "hashstring.h"
@@ -193,6 +194,8 @@ public:
   std::unique_ptr<VW::config::options_i, options_deleter_type> options;
 
   void* /*Search::search*/ searchstr;
+
+  std::unique_ptr<RED_PYTHON::ExternalBinding> ext_binding;
 
   uint32_t wpp;
 

@@ -2,6 +2,7 @@
 // individual contributors. All rights reserved. Released under a BSD (revised)
 // license as described in the file LICENSE.
 
+#include <algorithm>
 #include "vw.h"
 
 #include "multiclass.h"
@@ -13,10 +14,15 @@
 #include "gd.h"
 #include "options_boost_po.h"
 #include "options_serializer_boost_po.h"
+#include "options.h"
+#include "options_types.h"
 #include "future_compat.h"
 #include "slates_label.h"
 #include "simple_label_parser.h"
 #include "shared_data.h"
+
+#include "red_python.h"
+#include "reductions_fwd.h"
 
 // see http://www.boost.org/doc/libs/1_56_0/doc/html/bbv2/installation.html
 #define BOOST_PYTHON_USE_GCC_SYMBOL_VISIBILITY 1
@@ -37,6 +43,10 @@ typedef boost::shared_ptr<vw> vw_ptr;
 typedef boost::shared_ptr<example> example_ptr;
 typedef boost::shared_ptr<Search::search> search_ptr;
 typedef boost::shared_ptr<Search::predictor> predictor_ptr;
+typedef std::vector<example_ptr> ExList;
+
+class PyCppCallback;
+typedef boost::shared_ptr<PyCppCallback> py_cpp_callback_ptr;
 typedef boost::shared_ptr<py_log_wrapper> py_log_wrapper_ptr;
 
 const size_t lDEFAULT = 0;
@@ -212,6 +222,145 @@ public:
   }
 };
 
+class PyCppCallback
+{
+private:
+  void* base_learner;
+
+  bool isMulti = false;
+  multi_ex* examples = nullptr;
+
+  io_buf* model_file = nullptr;
+
+public:
+  PyCppCallback(void* base_learner) : base_learner(base_learner) {}
+  PyCppCallback(io_buf* model_file) : model_file(model_file) {}
+  PyCppCallback(void* base_learner, multi_ex* examples) : base_learner(base_learner), examples(examples)
+  {
+    isMulti = true;
+  }
+
+  void CallBaseLearner(example_ptr ec, bool should_call_learn = true)
+  {
+    if (!isMulti)
+    {
+      if (should_call_learn)
+        reinterpret_cast<VW::LEARNER::single_learner*>(this->base_learner)->learn(*ec.get());
+      else
+        reinterpret_cast<VW::LEARNER::single_learner*>(this->base_learner)->predict(*ec.get());
+    }
+  }
+
+  // 3. keep track of the multi_ex copy of the vector<boost pointer> copy (to avoid another copy)
+  //          both lists points to the same elements unless end user adds or removes
+  //          if that's the case we need to be able to override and force a copy
+  void CallMultiLearner(ExList example_list, bool should_call_learn = true)
+  {
+    if (isMulti)
+    {
+      if (should_call_learn)
+        VW::LEARNER::multiline_learn_or_predict<true>(
+            *reinterpret_cast<VW::LEARNER::multi_learner*>(base_learner), *examples, (*examples)[0]->ft_offset);
+      else
+        VW::LEARNER::multiline_learn_or_predict<false>(
+            *reinterpret_cast<VW::LEARNER::multi_learner*>(base_learner), *examples, (*examples)[0]->ft_offset);
+    }
+  }
+};
+
+class PyCppBridge : public RED_PYTHON::ExternalBinding
+{
+private:
+  py::object* py_reduction_impl;
+  void* base_learner;
+  bool register_finish_learn = false;
+  bool register_save_load = false;
+
+public:
+  int random_num = 0;
+
+  PyCppBridge(py::object* py_reduction_impl) : py_reduction_impl(new py::object(*py_reduction_impl))
+  {
+    this->register_finish_learn = py::extract<bool>(call_py_impl_method("_is_finish_example_implemented"));
+    this->register_save_load = py::extract<bool>(call_py_impl_method("_is_save_load_implemented"));
+  }
+
+  ~PyCppBridge() {}
+
+  bool ShouldRegisterFinishExample() { return this->register_finish_learn; }
+
+  bool ShouldRegisterSaveLoad() { return this->register_save_load; }
+
+  template <typename... Args>
+  py::object call_py_impl_method(char const* method_name, Args&&... args)
+  {
+    try
+    {
+      return this->py_reduction_impl->attr(method_name)(std::forward<Args>(args)...);
+    }
+    catch (...)
+    {
+      // TODO: Properly translate and return Python exception. #2169
+      PyErr_Print();
+      PyErr_Clear();
+      THROW("Exception when calling into python method: " << method_name);
+    }
+  }
+
+  // todo review if dont_delete_me is still needed with this refactor
+  void ActualLearn(example* ec)
+  {
+    this->call_py_impl_method("_learn_convenience", example_ptr(ec, dont_delete_me),
+        py_cpp_callback_ptr(new PyCppCallback(base_learner), dont_delete_me));
+  }
+
+  void ActualPredict(example* ec)
+  {
+    this->call_py_impl_method("_predict_convenience", example_ptr(ec, dont_delete_me),
+        py_cpp_callback_ptr(new PyCppCallback(base_learner), dont_delete_me));
+  }
+
+  void ActualFinishExample(example* ec)
+  {
+    this->call_py_impl_method("_finish_example", example_ptr(ec, dont_delete_me));
+  }
+
+  ExList multi_ex_to_boost(multi_ex* examples)
+  {
+    ExList list;
+    for (auto ec : *examples) { list.emplace_back(ec, dont_delete_me); }
+
+    return list;
+  }
+
+  void ActualLearn(multi_ex* examples)
+  {
+    ExList list = multi_ex_to_boost(examples);
+    this->call_py_impl_method(
+        "_learn_convenience", list, py_cpp_callback_ptr(new PyCppCallback(base_learner, examples), dont_delete_me));
+  }
+
+  void ActualPredict(multi_ex* examples)
+  {
+    ExList list = multi_ex_to_boost(examples);
+    this->call_py_impl_method(
+        "_predict_convenience", list, py_cpp_callback_ptr(new PyCppCallback(base_learner, examples), dont_delete_me));
+  }
+
+  void ActualFinishExample(multi_ex* examples)
+  {
+    ExList list = multi_ex_to_boost(examples);
+    this->call_py_impl_method("_finish_example", list);
+  }
+
+  void ActualSaveLoad(io_buf* model_file, bool read, bool text)
+  {
+    this->call_py_impl_method("_save_load_convenience", read, text, py_cpp_callback_ptr(new PyCppCallback(model_file)));
+  }
+
+  void SetBaseLearner(void* learner) { this->base_learner = learner; }
+};
+
 // specialization needed to compile, this should never be reached since we always use
 // VW::config::supported_options_types
 template <>
@@ -257,6 +406,36 @@ vw_ptr my_initialize_with_log(std::string args, py_log_wrapper_ptr py_log)
   }
 
   vw* foo = VW::initialize(args, nullptr, false, trace_listener, trace_context);
+  // return boost::shared_ptr<vw>(foo, [](vw *all){VW::finish(*all);});
+  return boost::shared_ptr<vw>(foo);
+}
+
+vw_ptr my_initialize_with_pyred(std::string args, py_log_wrapper_ptr py_log, py::object with_reduction)
+{
+  if (args.find_first_of("--no_stdin") == std::string::npos) args += " --no_stdin";
+
+  trace_message_t trace_listener = nullptr;
+  void* trace_context = nullptr;
+
+  if (py_log)
+  {
+    trace_listener = (py_log_wrapper::trace_listener_py);
+    trace_context = py_log.get();
+  }
+
+  vw* foo;
+
+  if (with_reduction)
+  {
+    // auto ext_binding = scoped_calloc_or_throw<RED_PYTHON::ExternalBinding>(new PyCppBridge(&with_reduction));
+    auto ext_binding = std::unique_ptr<RED_PYTHON::ExternalBinding>(new PyCppBridge(&with_reduction));
+    foo = VW::initialize_with_reduction(args, nullptr, false, trace_listener, trace_context, std::move(ext_binding));
+  }
+  else
+  {
+    foo = VW::initialize(args, nullptr, false, trace_listener, trace_context);
+  }
+
   // return boost::shared_ptr<vw>(foo, [](vw *all){VW::finish(*all);});
   return boost::shared_ptr<vw>(foo);
 }
@@ -749,11 +928,18 @@ float ex_get_simplelabel_initial(example_ptr ec)
   return ec->_reduction_features.template get<simple_label_reduction_features>().initial;
 }
 float ex_get_simplelabel_prediction(example_ptr ec) { return ec->pred.scalar; }
+void ex_set_simplelabel_prediction(example_ptr ec, float fl) { ec->pred.scalar = fl; }
 float ex_get_prob(example_ptr ec) { return ec->pred.prob; }
 
 uint32_t ex_get_multiclass_label(example_ptr ec) { return ec->l.multi.label; }
 float ex_get_multiclass_weight(example_ptr ec) { return ec->l.multi.weight; }
 uint32_t ex_get_multiclass_prediction(example_ptr ec) { return ec->pred.multiclass; }
+
+float ex_get_scalar(example_ptr ec)
+{
+  const auto value = ec->pred.scalar;
+  return value;
+}
 
 py::list ex_get_scalars(example_ptr ec)
 {
@@ -837,14 +1023,32 @@ float ex_get_cbandits_cost(example_ptr ec, uint32_t i) { return ec->l.cb.costs[i
 uint32_t ex_get_cbandits_class(example_ptr ec, uint32_t i) { return ec->l.cb.costs[i].action; }
 float ex_get_cbandits_probability(example_ptr ec, uint32_t i) { return ec->l.cb.costs[i].probability; }
 float ex_get_cbandits_partial_prediction(example_ptr ec, uint32_t i) { return ec->l.cb.costs[i].partial_prediction; }
+// example_ptr examples_get_cb_label_from_adf(ExList examples)
+py::tuple examples_get_cb_label_from_adf(ExList examples)
+{
+  auto it = std::find_if(examples.begin(), examples.end(), [](example_ptr& ex) { return !(ex->l.cb.costs.empty()); });
+  if (it != examples.end())
+  {
+    uint32_t labelled_action = static_cast<uint32_t>(std::distance(examples.begin(), it));
+    return py::make_tuple(*it, labelled_action);
+    // return *it;
+  }
+  else
+  {
+    return py::make_tuple(py::object(), -1);
+    // return example_ptr();
+  }
+}
 
 // example_counter is being overriden by lableType!
 size_t get_example_counter(example_ptr ec) { return ec->example_counter; }
 uint64_t get_ft_offset(example_ptr ec) { return ec->ft_offset; }
 size_t get_num_features(example_ptr ec) { return ec->get_num_features(); }
 float get_partial_prediction(example_ptr ec) { return ec->partial_prediction; }
+void set_partial_prediction(example_ptr ec, float value) { ec->partial_prediction = value; }
 float get_updated_prediction(example_ptr ec) { return ec->updated_prediction; }
 float get_loss(example_ptr ec) { return ec->loss; }
+void set_loss(example_ptr ec, float fl) { ec->loss = fl; }
 float get_total_sum_feat_sq(example_ptr ec) { return ec->get_total_sum_feat_sq(); }
 
 double get_sum_loss(vw_ptr vw) { return vw->sd->sum_loss; }
@@ -1143,6 +1347,7 @@ BOOST_PYTHON_MODULE(pylibvw)
       "vw", "the basic VW object that holds with weight vector, parser, etc.", py::no_init)
       .def("__init__", py::make_constructor(my_initialize))
       .def("__init__", py::make_constructor(my_initialize_with_log))
+      .def("__init__", py::make_constructor(my_initialize_with_pyred))
       //      .def("__del__", &my_finish, "deconstruct the VW object by calling finish")
       .def("run_parser", &my_run_parser, "parse external data file")
       .def("get_learner_metrics", &get_learner_metrics,
@@ -1236,6 +1441,7 @@ BOOST_PYTHON_MODULE(pylibvw)
       .def("get_updated_prediction", &get_updated_prediction,
           "Returns the partial prediction as if we had updated it after learning")
       .def("get_loss", &get_loss, "Returns the loss associated with this example")
+      .def("set_loss", &set_loss, "Sets the loss associated with this example")
       .def("get_total_sum_feat_sq", &get_total_sum_feat_sq, "The total sum of feature-value squared for this example")
 
       .def("num_namespaces", &ex_num_namespaces, "The total number of namespaces associated with this example")
@@ -1267,12 +1473,15 @@ BOOST_PYTHON_MODULE(pylibvw)
           "Assuming a simple_label label type, return the initial (baseline) prediction")
       .def("get_simplelabel_prediction", &ex_get_simplelabel_prediction,
           "Assuming a simple_label label type, return the final prediction")
+      .def("set_simplelabel_prediction", &ex_set_simplelabel_prediction,
+          "Assuming a simple_label label type, set the final prediction")
       .def("get_multiclass_label", &ex_get_multiclass_label, "Assuming a multiclass label type, get the true label")
       .def("get_multiclass_weight", &ex_get_multiclass_weight,
           "Assuming a multiclass label type, get the importance weight")
       .def("get_multiclass_prediction", &ex_get_multiclass_prediction,
           "Assuming a multiclass label type, get the prediction")
       .def("get_prob", &ex_get_prob, "Get probability from example prediction")
+      .def("get_scalar", &ex_get_scalar, "Get scalar value from example prediction")
       .def("get_scalars", &ex_get_scalars, "Get scalar values from example prediction")
       .def("get_action_scores", &ex_get_action_scores, "Get action scores from example prediction")
       .def("get_decision_scores", &ex_get_decision_scores, "Get decision scores from example prediction")
@@ -1310,6 +1519,11 @@ BOOST_PYTHON_MODULE(pylibvw)
           "Assuming a contextual_bandits label type, get the partial prediction for a given pair (i=0.. "
           "get_cbandits_num_costs)");
 
+  // equivalent to multi_ex, might be a bit more efficient
+  py::class_<ExList>("ExList")
+      .def(py::vector_indexing_suite<ExList>())
+      .def("get_example_with_label", &examples_get_cb_label_from_adf, "Assuming a contextual_bandits label type,");
+
   py::class_<Search::predictor, predictor_ptr>("predictor", py::no_init)
       .def("set_input", &my_set_input, "set the input (an example) for this predictor (non-LDF mode only)")
       //.def("set_input_ldf", &my_set_input_ldf, "set the inputs (a list of examples) for this predictor (LDF mode
@@ -1338,6 +1552,12 @@ BOOST_PYTHON_MODULE(pylibvw)
 
   py::class_<py_log_wrapper, py_log_wrapper_ptr>(
       "vw_log", "do not use, see pyvw.vw.init(enable_logging..)", py::init<py::object>());
+
+  py::class_<PyCppCallback, py_cpp_callback_ptr>("pycpp_callback", py::no_init)
+      .def("call_base_learner", &PyCppCallback::CallBaseLearner,
+          "Callback used for custom python reductions. See Copperhead. (you don't want to call this yourself!")
+      .def("call_multi_learner", &PyCppCallback::CallMultiLearner,
+          "Callback used for custom python reductions. See Copperhead. (you don't want to call this yourself!");
 
   py::class_<Search::search, search_ptr>("search")
       .def("set_options", &Search::search::set_options, "Set global search options (auto conditioning, etc.)")
