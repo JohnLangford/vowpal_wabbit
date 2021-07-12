@@ -1,0 +1,143 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema",
+  "$id": "http://example.com/example.json",
+  "type": "object",
+  "title": "The root schema",
+  "description": "https://github.com/vowpalwabbit/vowpal_wabbit/wiki/JSON",
+  "default": {},
+  "examples": [],
+  "required": [],
+  "definitions": {
+  },
+  "additionalProperties": true,
+  "patternProperties": {
+    "^[^_].*": {
+      "type": [
+        "string",
+        "number",
+        "boolean",
+        "array",
+        "object"
+      ],
+      "items": {
+        "type": "number"
+      }
+    },
+    "^_": {
+      "type": [
+        "number",
+        "string",
+        "boolean",
+        "object",
+        "array",
+        "null"
+      ]
+    }
+  },
+  "properties": {
+    "_tag": {
+      "$id": "#/properties/_tag",
+      "type": "string",
+      "title": "The _tag schema",
+      "description": "An explanation about the purpose of this instance.",
+      "default": "",
+      "examples": [
+        "mytag"
+      ]
+    },
+    "_label": {
+      "oneOf": [
+        {
+          "$id": "#/properties/_label",
+          "type": "integer",
+          "title": "The _label schema",
+          "description": "An explanation about the purpose of this instance.",
+          "default": 0,
+          "examples": [
+            1
+          ]
+        },
+        {
+          "$id": "#/properties/_labelobject",
+          "type": "object",
+          "title": "The _label schema",
+          "description": "An explanation about the purpose of this instance.",
+          "default": 0,
+          "oneOf": [
+            {
+              "anyOf": [
+                {
+                  "required": [
+                    "Label"
+                  ]
+                },
+                {
+                  "required": [
+                    "Weight"
+                  ]
+                }
+              ]
+            },
+            {
+              "anyOf": [
+                {
+                  "required": [
+                    "Action"
+                  ]
+                },
+                {
+                  "required": [
+                    "Probability"
+                  ]
+                },
+                {
+                  "required": [
+                    "Cost"
+                  ]
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "Label": {
+              "$id": "#/properties/_labelobject/properties/Label",
+              "type": "integer",
+              "title": "The Label schema",
+              "description": "An explanation about the purpose of this instance.",
+              "default": 0,
+              "examples": [
+                2
+              ]
+            },
+            "Weight": {
+              "$id": "#/properties/_labelobject/properties/Weight",
+              "type": "number",
+              "title": "The Weight schema",
+              "description": "An explanation about the purpose of this instance.",
+              "default": 0.0,
+              "examples": [
+                0.3
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "_text": {
+      "$id": "#/properties/_text",
+      "type": "string",
+      "title": "The _text schema",
+      "description": "An explanation about the purpose of this instance.",
+      "default": "",
+      "examples": [
+      ]
+    },
+    "_multi": {
+      "$id": "#/properties/_multi",
+      "type": "array",
+      "title": "The _multi schema",
+      "description": "An explanation about the purpose of this instance.",
+      "default": []
+    }
+  }
+}
