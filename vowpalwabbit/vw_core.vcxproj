@@ -184,6 +184,7 @@
     <ClInclude Include="explore_eval.h" />
     <ClInclude Include="feature_group.h" />
     <ClInclude Include="ftrl.h" />
+    <ClInclude Include="freegrad.h" />
     <ClInclude Include="gd_mf.h" />
     <ClInclude Include="gd.h" />
     <ClInclude Include="gd_predict.h" />
@@ -347,6 +348,7 @@
     <ClCompile Include="explore_eval.cc" />
     <ClCompile Include="feature_group.cc" />
     <ClCompile Include="ftrl.cc" />
+    <ClCompile Include="freegrad.cc" />
     <ClCompile Include="gd_mf.cc" />
     <ClCompile Include="gd.cc" />
     <ClCompile Include="gen_cs_example.cc" />

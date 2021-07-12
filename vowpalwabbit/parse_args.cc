@@ -57,6 +57,7 @@
 #include "learner.h"
 #include "mf.h"
 #include "ftrl.h"
+#include "freegrad.h"
 #include "svrg.h"
 #include "rand48.h"
 #include "binary.h"
@@ -1262,7 +1263,7 @@ VW::LEARNER::base_learner* setup_base(options_i& options, vw& all)
 
 void register_reductions(vw& all, std::vector<reduction_setup_fn>& reductions)
 {
-  std::map<reduction_setup_fn, std::string> allowlist = {{GD::setup, "gd"}, {ftrl_setup, "ftrl"},
+  std::map<reduction_setup_fn, std::string> allowlist = {{GD::setup, "gd"}, {freegrad_setup, "freegrad"}, {ftrl_setup, "ftrl"},
       {scorer_setup, "scorer"}, {CSOAA::csldf_setup, "csoaa_ldf"},
       {VW::cb_explore_adf::greedy::setup, "cb_explore_adf_greedy"},
       {VW::cb_explore_adf::regcb::setup, "cb_explore_adf_regcb"},
@@ -1298,6 +1299,7 @@ void parse_reductions(options_i& options, vw& all)
   reductions.push_back(GD::setup);
   reductions.push_back(kernel_svm_setup);
   reductions.push_back(ftrl_setup);
+  reductions.push_back(freegrad_setup);
   reductions.push_back(svrg_setup);
   reductions.push_back(sender_setup);
   reductions.push_back(gd_mf_setup);

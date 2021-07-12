@@ -113,6 +113,7 @@ set(vw_all_headers
   fast_pow10.h
   feature_group.h
   ftrl.h
+  freegrad.h
   gd_mf.h
   gd_predict.h
   gd.h
@@ -284,6 +285,7 @@ set(vw_all_sources
   explore_eval.cc
   feature_group.cc
   ftrl.cc
+  freegrad.cc
   gd_mf.cc
   gd.cc
   gen_cs_example.cc
