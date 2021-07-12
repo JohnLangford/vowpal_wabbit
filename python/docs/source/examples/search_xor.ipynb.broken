@@ -1,0 +1,94 @@
+{
+ "metadata": {
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.9.2"
+  },
+  "orig_nbformat": 4,
+  "kernelspec": {
+   "name": "python3",
+   "display_name": "Python 3.9.2 64-bit ('venv': venv)"
+  },
+  "interpreter": {
+   "hash": "effe7c91cd0a74db529d06d3b051130f165eb4dab122b3e9455a73eecfba9cb1"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 2,
+ "cells": [
+  {
+   "source": [
+    "# Search - LatentVariableClassifier"
+   ],
+   "cell_type": "markdown",
+   "metadata": {}
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 2,
+   "metadata": {},
+   "outputs": [
+    {
+     "output_type": "stream",
+     "name": "stdout",
+     "text": [
+      "training\ntesting\npred = 1\npred = 1\npred = 2\npred = 2\n"
+     ]
+    }
+   ],
+   "source": [
+    "from vowpalwabbit import pyvw\n",
+    "\n",
+    "\n",
+    "class LatentVariableClassifier(pyvw.SearchTask):\n",
+    "    def __init__(self, vw, sch, num_actions):\n",
+    "        pyvw.SearchTask.__init__(self, vw, sch, num_actions)\n",
+    "        sch.set_options( sch.AUTO_CONDITION_FEATURES )\n",
+    "\n",
+    "    def _run(self, y_x):\n",
+    "        y,(x0,x1) = y_x\n",
+    "\n",
+    "        ex = self.example({'x': [('x0',x0), ('x1',x1)]})\n",
+    "        h  = self.sch.predict(examples=ex, my_tag=1, oracle=None) * 2 - 3\n",
+    "\n",
+    "        ex = self.example({'x': [('x0',x0), ('x1',x1), ('x0h',x0*h)]})\n",
+    "        p  = self.sch.predict(examples=ex, my_tag=2, oracle=y, condition=(1,'h'))\n",
+    "\n",
+    "        self.sch.loss( 0. if p == y else 1. )\n",
+    "        return p\n",
+    "\n",
+    "my_dataset = [ (1, (-1, -1)),\n",
+    "               (1, (+1, +1)),\n",
+    "               (2, (-1, +1)),\n",
+    "               (2, (+1, -1)) ]\n",
+    "\n",
+    "\n",
+    "vw = pyvw.vw(\"--search 2 --search_task hook --ring_size 1024 --search_alpha 1e-2\")\n",
+    "lv = vw.init_search_task(LatentVariableClassifier)\n",
+    "\n",
+    "print('training')\n",
+    "for i in range(100):\n",
+    "    lv.learn(my_dataset)\n",
+    "\n",
+    "print('testing')\n",
+    "for (y,x) in my_dataset:\n",
+    "    print('pred =', lv.predict( (0,x) ))\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  }
+ ]
+}

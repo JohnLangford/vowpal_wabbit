@@ -1,0 +1,20 @@
+{% extends "!layout.html" %}
+
+{% block docs_body %}
+    {# If this is set then we are rendering a notebook and should inject the binder and thebe buttons#}
+    {% if binder_url %}
+    <button title="Activate interactive cells" class="thebelab-button thebe-launch-button" onclick="initThebe()">
+        Make live
+    </button>
+    <a class="binder-button" href="{{ binder_url }}">
+        <img class="binder-button-logo" src="https://mybinder.org/badge_logo.svg" alt="Binder">
+    </a>
+    {% endif %}
+{{ super() }}
+{% endblock %}
+
+{% block docs_navbar %}
+<nav class="navbar navbar-light navbar-expand-lg bg-light fixed-top bd-navbar" id="navbar-main">
+I'm a header
+</nav>
+{% endblock %}

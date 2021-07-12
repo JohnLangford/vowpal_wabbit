@@ -1,0 +1,14 @@
+# Tutorials
+
+```{toctree}
+:maxdepth: 1
+
+cmd_first_steps
+cmd_linear_regression
+off_policy_evaluation
+python_classification
+python_Contextual_bandits_and_Vowpal_Wabbit
+python_Simulating_a_news_personalization_scenario_using_Contextual_Bandits
+python_first_steps
+python_slates
+```

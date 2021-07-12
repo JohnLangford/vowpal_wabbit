@@ -1,4 +1,8 @@
-from __future__ import print_function
+# Mini VW
+
+
+
+```python
 
 import sys
 from vowpalwabbit import pyvw
@@ -34,4 +38,4 @@ if __name__ == '__main__':
     otherArgs = ' '.join(sys.argv[3:])
 
     mini_vw(inputFile, numPasses, otherArgs)
-
+```

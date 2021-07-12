@@ -8,24 +8,16 @@
 
 # -- Path setup --------------------------------------------------------------
 
-# If extensions (or modules to document with autodoc) are in another directory,
-# add these directories to sys.path here. If the directory is relative to the
-# documentation root, use os.path.abspath to make it absolute, like shown here.
-#
 import os
 import sys
 import vowpalwabbit
-
-sys.path.insert(0, os.path.abspath('.'))
-sys.path.insert(0, os.path.abspath('../../'))
-
+from pathlib import Path
 
 # -- Project information -----------------------------------------------------
 
 project = u'VowpalWabbit'
-copyright = u'2019, John langford et al'
+copyright = u'2021, John langford et al'
 author = u'John langford et al'
-
 
 # Read version automatically from vowpalwabbit.__version__--------------------
 
@@ -34,10 +26,6 @@ version = vowpalwabbit.__version__
 release = version
 
 # -- General configuration ---------------------------------------------------
-
-# If your documentation needs a minimal Sphinx version, state it here.
-#
-# needs_sphinx = '1.0'
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
@@ -49,7 +37,31 @@ extensions = [
     'sphinx.ext.coverage',
     'numpydoc',
     'sphinx.ext.githubpages',
+    'sphinx_thebe',
+    "myst_nb",
 ]
+
+jupyter_execute_notebooks = "cache"
+thebe_config = {
+    "repository_url": "https://github.com/VowpalWabbit/vowpal_wabbit",
+    "repository_branch": "master",
+    "selector": ".cell",
+}
+show_navbar_depth = 2
+
+html_theme_options = {
+    "use_edit_page_button": True
+}
+
+myst_heading_anchors = 2
+numpydoc_show_class_members = False
+
+html_context = {
+    "github_user": "VowpalWabbit",
+    "github_repo": "vowpal_wabbit",
+    "github_version": "master",
+    "doc_path": "python/docs/source",
+}
 
 # This helps to document __init__
 def skip(app, what, name, obj, would_skip, options):
@@ -58,16 +70,16 @@ def skip(app, what, name, obj, would_skip, options):
     return would_skip
 
 def setup(app):
+    app.add_config_value("binder_url_config", {}, "html")
     app.connect("autodoc-skip-member", skip)
+    app.connect("html-page-context", add_binder_url_for_page)
 
-# Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 
 # The suffix(es) of source filenames.
 # You can specify multiple suffix as a list of string:
 #
-# source_suffix = ['.rst', '.md']
-source_suffix = '.rst'
+source_suffix = ['.rst', '.md']
 
 # The master toctree document.
 master_doc = 'index'
@@ -93,7 +105,7 @@ pygments_style = None
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'default'
+html_theme = 'pydata_sphinx_theme'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -106,6 +118,13 @@ html_theme = 'default'
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
 
+html_css_files = [
+    'custom.css',
+]
+
+html_sidebars = { '**': ['search-field.html', 'nav-toc-override.html'] }
+
+
 # Custom sidebar templates, must be a dictionary that maps document names
 # to template names.
 #
@@ -115,86 +134,64 @@ html_static_path = ['_static']
 # 'searchbox.html']``.
 #
 # html_sidebars = {}
-
-
-# -- Options for HTMLHelp output ---------------------------------------------
-
-# Output file base name for HTML help builder.
-htmlhelp_basename = 'VowpalWabbitdoc'
-
-
-# -- Options for LaTeX output ------------------------------------------------
-
-latex_elements = {
-    # The paper size ('letterpaper' or 'a4paper').
-    #
-    # 'papersize': 'letterpaper',
-
-    # The font size ('10pt', '11pt' or '12pt').
-    #
-    # 'pointsize': '10pt',
-
-    # Additional stuff for the LaTeX preamble.
-    #
-    # 'preamble': '',
-
-    # Latex figure (float) alignment
-    #
-    # 'figure_align': 'htbp',
-}
-
-# Grouping the document tree into LaTeX files. List of tuples
-# (source start file, target name, title,
-#  author, documentclass [howto, manual, or own class]).
-latex_documents = [
-    (master_doc, 'VowpalWabbit.tex', u'VowpalWabbit Documentation',
-     u'John langford et al', 'manual'),
-]
-
-
-# -- Options for manual page output ------------------------------------------
-
-# One entry per manual page. List of tuples
-# (source start file, name, description, authors, manual section).
-man_pages = [
-    (master_doc, 'vowpalwabbit', u'VowpalWabbit Documentation',
-     [author], 1)
-]
-
-
-# -- Options for Texinfo output ----------------------------------------------
-
-# Grouping the document tree into Texinfo files. List of tuples
-# (source start file, target name, title, author,
-#  dir menu entry, description, category)
-texinfo_documents = [
-    (master_doc, 'VowpalWabbit', u'VowpalWabbit Documentation',
-     author, 'VowpalWabbit', 'One line description of project.',
-     'Miscellaneous'),
-]
-
-
-# -- Options for Epub output -------------------------------------------------
-
-# Bibliographic Dublin Core info.
-epub_title = project
-
-# The unique identifier of the text. This can be a ISBN number
-# or the project homepage.
-#
-# epub_identifier = ''
-
-# A unique identification for the text.
-#
-# epub_uid = ''
-
-# A list of files that should not be packed into the epub file.
-epub_exclude_files = ['search.html']
-
-
-# -- Extension configuration -------------------------------------------------
-
 # -- Options for intersphinx extension ---------------------------------------
 
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {'https://docs.python.org/': None}
+
+binder_url_config = {
+    "branch": "master",
+    "repo_url": "https://github.com/VowpalWabbit/vowpal_wabbit",
+    "path_to_docs": "python/docs/source"
+}
+
+def add_binder_url_for_page(
+    app,
+    pagename: str,
+    templatename: str,
+    context,
+    doctree,
+):
+
+    # First decide if we'll insert any links
+    path = app.env.doc2path(pagename)
+    extension = Path(path).suffix
+    binder_url_config = app.config["binder_url_config"]
+
+    repo_url = binder_url_config["repo_url"]
+
+    # Parse the repo parts from the URL
+    org, repo = _split_repo_url(repo_url)
+    if org is None and repo is None:
+        # Skip the rest because the repo_url isn't right
+        return
+
+    branch = binder_url_config["branch"]
+
+    # Check if we have a non-ipynb file, but an ipynb of same name exists
+    # If so, we'll use the ipynb extension instead of the text extension
+    if extension != ".ipynb" and Path(path).with_suffix(".ipynb").exists():
+        extension = ".ipynb"
+    elif extension != ".ipynb":
+        return
+
+    # Construct a path to the file relative to the repository root
+    book_relpath = binder_url_config["path_to_docs"]
+    if book_relpath != "":
+        book_relpath += "/"
+    path_rel_repo = f"{book_relpath}{pagename}{extension}"
+
+    url = (
+        f"https://mybinder.org/v2/gh/{org}/{repo}/{branch}?"
+        f"filepath={path_rel_repo}"
+    )
+    context["binder_url"] = url
+
+def _split_repo_url(url):
+    """Split a repository URL into an org / repo combination."""
+    if "github.com/" in url:
+        end = url.split("github.com/")[-1]
+        org, repo = end.split("/")[:2]
+    else:
+        raise ValueError(f"Currently Binder/JupyterHub repositories must be on GitHub, got {url}")
+    return org, repo
