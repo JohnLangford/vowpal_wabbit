@@ -66,7 +66,7 @@ inline float glf1(float in) { return 2.f / (1.f + correctedExp(-in)) - 1.f; }
 
 inline float id(float in) { return in; }
 
-VW::LEARNER::base_learner* scorer_setup(options_i& options, vw& all)
+VW::LEARNER::base_learner* scorer_setup(VW::setup_base_fn& setup_base, options_i& options, vw& all)
 {
   auto s = scoped_calloc_or_throw<scorer>();
   std::string link;

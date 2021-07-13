@@ -333,7 +333,7 @@ void end_pass(ftrl& g)
   }
 }
 
-base_learner* ftrl_setup(options_i& options, vw& all)
+base_learner* ftrl_setup(VW::setup_base_fn&, options_i& options, vw& all)
 {
   auto b = scoped_calloc_or_throw<ftrl>();
   bool ftrl_option = false;

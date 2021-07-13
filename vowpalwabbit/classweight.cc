@@ -78,7 +78,7 @@ void predict_or_learn(classweights& cweights, VW::LEARNER::single_learner& base,
 
 using namespace CLASSWEIGHTS;
 
-VW::LEARNER::base_learner* classweight_setup(options_i& options, vw& all)
+VW::LEARNER::base_learner* classweight_setup(VW::setup_base_fn& setup_base, options_i& options, vw& all)
 {
   std::vector<std::string> classweight_array;
   auto cweights = scoped_calloc_or_throw<classweights>();

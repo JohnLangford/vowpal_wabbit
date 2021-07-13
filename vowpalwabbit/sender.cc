@@ -100,7 +100,7 @@ void end_examples(sender& s)
   s.buf->close_files();
 }
 
-VW::LEARNER::base_learner* sender_setup(options_i& options, vw& all)
+VW::LEARNER::base_learner* sender_setup(VW::setup_base_fn&, options_i& options, vw& all)
 {
   std::string host;
 

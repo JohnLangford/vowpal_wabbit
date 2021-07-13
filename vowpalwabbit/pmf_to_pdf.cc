@@ -232,7 +232,7 @@ void finish_example(vw& all, reduction& c, example& ec)
   VW::finish_example(all, ec);
 }
 
-base_learner* setup(options_i& options, vw& all)
+base_learner* setup(VW::setup_base_fn& setup_base, options_i& options, vw& all)
 {
   auto data = scoped_calloc_or_throw<pmf_to_pdf::reduction>();
 

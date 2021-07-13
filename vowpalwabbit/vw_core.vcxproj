@@ -193,6 +193,8 @@
     <ClInclude Include="guard.h" />
     <ClInclude Include="interact.h" />
     <ClInclude Include="interactions_predict.h" />
+    <ClInclude Include="cached_learner.h" />
+    <ClInclude Include="reduction_stack.h" />
     <ClInclude Include="interactions.h" />
     <ClInclude Include="io_buf.h" />
     <ClInclude Include="io/io_adapter.h" />
@@ -354,6 +356,7 @@
     <ClCompile Include="global_data.cc" />
     <ClCompile Include="interact.cc" />
     <ClCompile Include="interactions.cc" />
+    <ClCompile Include="reduction_stack.cc" />
     <ClCompile Include="io/io_adapter.cc" />
     <ClCompile Include="io_buf.cc" />
     <ClCompile Include="kernel_svm.cc" />

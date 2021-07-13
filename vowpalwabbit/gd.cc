@@ -1149,7 +1149,7 @@ uint64_t ceil_log_2(uint64_t v)
     return 1 + ceil_log_2(v >> 1);
 }
 
-base_learner* setup(options_i& options, vw& all)
+base_learner* setup(VW::setup_base_fn&, options_i& options, vw& all)
 {
   auto g = scoped_calloc_or_throw<gd>();
 

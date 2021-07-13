@@ -486,7 +486,7 @@ void save_load_tree(recall_tree& b, io_buf& model_file, bool read, bool text)
 
 using namespace recall_tree_ns;
 
-base_learner* recall_tree_setup(options_i& options, vw& all)
+base_learner* recall_tree_setup(VW::setup_base_fn& setup_base, options_i& options, vw& all)
 {
   auto tree = scoped_calloc_or_throw<recall_tree>();
   option_group_definition new_options("Recall Tree");

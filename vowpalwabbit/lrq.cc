@@ -162,7 +162,7 @@ void predict_or_learn(LRQstate& lrq, single_learner& base, example& ec)
   }  // end for(max_iter)
 }
 
-base_learner* lrq_setup(options_i& options, vw& all)
+base_learner* lrq_setup(VW::setup_base_fn& setup_base, options_i& options, vw& all)
 {
   auto lrq = scoped_calloc_or_throw<LRQstate>();
   std::vector<std::string> lrq_names;

@@ -137,7 +137,7 @@ void return_active_example(vw& all, active& a, example& ec)
   VW::finish_example(all, ec);
 }
 
-base_learner* active_setup(options_i& options, vw& all)
+base_learner* active_setup(VW::setup_base_fn& setup_base, options_i& options, vw& all)
 {
   auto data = scoped_calloc_or_throw<active>();
 

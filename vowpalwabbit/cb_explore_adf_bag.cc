@@ -143,7 +143,7 @@ void print_bag_example(vw& all, cb_explore_adf_base<cb_explore_adf_bag>& data, m
   cb_explore_adf_base<cb_explore_adf_bag>::print_multiline_example(all, data, ec_seq);
 }
 
-VW::LEARNER::base_learner* setup(VW::config::options_i& options, vw& all)
+VW::LEARNER::base_learner* setup(VW::setup_base_fn& setup_base, VW::config::options_i& options, vw& all)
 {
   using config::make_option;
   bool cb_explore_adf_option = false;

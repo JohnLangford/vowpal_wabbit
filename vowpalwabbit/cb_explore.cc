@@ -323,7 +323,7 @@ void save_load(cb_explore& cb, io_buf& io, bool read, bool text)
 }  // namespace CB_EXPLORE
 using namespace CB_EXPLORE;
 
-base_learner* cb_explore_setup(options_i& options, vw& all)
+base_learner* cb_explore_setup(VW::setup_base_fn& setup_base, options_i& options, vw& all)
 {
   auto data = scoped_calloc_or_throw<cb_explore>();
   option_group_definition new_options("Contextual Bandit Exploration");

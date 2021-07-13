@@ -36,7 +36,5 @@ void parse_sources(VW::config::options_i& options, vw& all, io_buf& model, bool 
 void merge_options_from_header_strings(const std::vector<std::string>& strings, bool skip_interactions,
     VW::config::options_i& options, bool& is_ccb_input_model);
 
-VW::LEARNER::base_learner* setup_base(VW::config::options_i& options, vw& all);
-
 std::string spoof_hex_encoded_namespaces(const std::string& arg);
 bool ends_with(const std::string& fullString, const std::string& ending);

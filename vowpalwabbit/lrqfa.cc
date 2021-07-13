@@ -131,7 +131,7 @@ void predict_or_learn(LRQFAstate& lrq, single_learner& base, example& ec)
   }
 }
 
-VW::LEARNER::base_learner* lrqfa_setup(options_i& options, vw& all)
+VW::LEARNER::base_learner* lrqfa_setup(VW::setup_base_fn& setup_base, options_i& options, vw& all)
 {
   std::string lrqfa;
   option_group_definition new_options("Low Rank Quadratics FA");

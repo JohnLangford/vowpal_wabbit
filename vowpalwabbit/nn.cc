@@ -405,7 +405,7 @@ void finish_example(vw& all, nn&, example& ec)
   return_simple_example(all, nullptr, ec);
 }
 
-base_learner* nn_setup(options_i& options, vw& all)
+base_learner* nn_setup(VW::setup_base_fn& setup_base, options_i& options, vw& all)
 {
   auto n = scoped_calloc_or_throw<nn>();
   bool meanfield = false;

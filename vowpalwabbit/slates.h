@@ -52,7 +52,7 @@ public:
   void predict(VW::LEARNER::multi_learner& base, multi_ex& examples);
 };
 
-VW::LEARNER::base_learner* slates_setup(VW::config::options_i& options, vw& all);
+VW::LEARNER::base_learner* slates_setup(VW::setup_base_fn&, VW::config::options_i& options, vw& all);
 std::string generate_slates_label_printout(const std::vector<example*>& slots);
 }  // namespace slates
 }  // namespace VW

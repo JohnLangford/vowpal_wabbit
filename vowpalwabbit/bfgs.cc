@@ -1058,7 +1058,7 @@ void save_load(bfgs& b, io_buf& model_file, bool read, bool text)
 
 void init_driver(bfgs& b) { b.backstep_on = true; }
 
-base_learner* bfgs_setup(options_i& options, vw& all)
+base_learner* bfgs_setup(VW::setup_base_fn&, options_i& options, vw& all)
 {
   auto b = VW::make_unique<bfgs>();
   bool conjugate_gradient = false;

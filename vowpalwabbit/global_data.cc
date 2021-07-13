@@ -17,6 +17,7 @@
 #include "vw_allreduce.h"
 #include "named_labels.h"
 #include "shared_data.h"
+#include "reduction_stack.h"
 #ifdef BUILD_FLATBUFFERS
 #  include "parser/flatbuffer/parse_example_flatbuffer.h"
 #endif
@@ -102,7 +103,7 @@ std::string vw::get_setupfn_name(reduction_setup_fn setup_fn)
   return "NA";
 }
 
-void vw::build_setupfn_name_dict()
+void vw::build_setupfn_name_dict(std::vector<std::tuple<std::string, reduction_setup_fn>>& reduction_stack)
 {
   for (auto&& setup_tuple : reduction_stack) { _setup_name_map[std::get<1>(setup_tuple)] = std::get<0>(setup_tuple); }
 }
@@ -355,6 +356,7 @@ vw::vw() : options(nullptr, nullptr)
   // Set by the '--progress <arg>' option and affect sd->dump_interval
   progress_add = false;  // default is multiplicative progress dumps
   progress_arg = 2.0;    // next update progress dump multiplier
+  learner_builder = nullptr;
 }
 VW_WARNING_STATE_POP
 

@@ -320,7 +320,7 @@ void learn(gdmf& d, single_learner&, example& ec)
   if (all.training && ec.l.simple.label != FLT_MAX) mf_train(d, ec);
 }
 
-base_learner* gd_mf_setup(options_i& options, vw& all)
+base_learner* gd_mf_setup(VW::setup_base_fn&, options_i& options, vw& all)
 {
   auto data = scoped_calloc_or_throw<gdmf>();
 

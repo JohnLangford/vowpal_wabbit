@@ -651,7 +651,7 @@ void save_load(stagewise_poly &poly, io_buf &model_file, bool read, bool text)
   //#endif //DEBUG
 }
 
-base_learner *stagewise_poly_setup(options_i &options, vw &all)
+base_learner* stagewise_poly_setup(VW::setup_base_fn& setup_base, options_i& options, vw& all)
 {
   auto poly = scoped_calloc_or_throw<stagewise_poly>();
   bool stage_poly = false;
@@ -690,7 +690,7 @@ base_learner *stagewise_poly_setup(options_i &options, vw &all)
   poly->original_ec = nullptr;
   poly->next_batch_sz = poly->batch_sz;
 
-  learner<stagewise_poly, example> &l = init_learner(
+  learner<stagewise_poly, example>& l = init_learner(
       poly, as_singleline(setup_base(options, all)), learn, predict, all.get_setupfn_name(stagewise_poly_setup));
 
   l.set_save_load(save_load);

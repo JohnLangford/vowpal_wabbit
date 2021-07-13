@@ -218,7 +218,7 @@ void finish_example_scores(vw& all, oaa& o, example& ec)
   VW::finish_example(all, ec);
 }
 
-VW::LEARNER::base_learner* oaa_setup(options_i& options, vw& all)
+VW::LEARNER::base_learner* oaa_setup(VW::setup_base_fn& setup_base, options_i& options, vw& all)
 {
   auto data = scoped_calloc_or_throw<oaa>();
   bool probabilities = false;

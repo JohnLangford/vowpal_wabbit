@@ -239,7 +239,7 @@ void init_driver(audit_regressor_data& dat)
   }
 }
 
-VW::LEARNER::base_learner* audit_regressor_setup(options_i& options, vw& all)
+VW::LEARNER::base_learner* audit_regressor_setup(VW::setup_base_fn& setup_base, options_i& options, vw& all)
 {
   std::string out_file;
 

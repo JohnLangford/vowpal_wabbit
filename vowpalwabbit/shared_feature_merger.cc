@@ -93,7 +93,8 @@ void persist(sfm_data& data, metric_sink& metrics)
   }
 }
 
-VW::LEARNER::base_learner* shared_feature_merger_setup(config::options_i& options, vw& all)
+VW::LEARNER::base_learner* shared_feature_merger_setup(
+    VW::setup_base_fn& setup_base, config::options_i& options, vw& all)
 {
   if (!use_reduction(options)) return nullptr;
 

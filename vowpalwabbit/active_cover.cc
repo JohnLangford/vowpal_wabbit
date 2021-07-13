@@ -206,7 +206,7 @@ void predict_or_learn_active_cover(active_cover& a, single_learner& base, exampl
   }
 }
 
-base_learner* active_cover_setup(options_i& options, vw& all)
+base_learner* active_cover_setup(VW::setup_base_fn& setup_base, options_i& options, vw& all)
 {
   auto data = VW::make_unique<active_cover>();
   option_group_definition new_options("Active Learning with Cover");

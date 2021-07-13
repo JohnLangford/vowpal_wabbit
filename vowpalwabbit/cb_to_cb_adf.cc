@@ -101,7 +101,7 @@ void finish_example(vw& all, cb_to_cb_adf& c, example& ec)
 
     Related files: cb_algs.cc, cb_explore.cc, cbify.cc
 */
-VW::LEARNER::base_learner* cb_to_cb_adf_setup(options_i& options, vw& all)
+VW::LEARNER::base_learner* cb_to_cb_adf_setup(VW::setup_base_fn& setup_base, options_i& options, vw& all)
 {
   bool compat_old_cb = false;
   bool force_legacy = false;

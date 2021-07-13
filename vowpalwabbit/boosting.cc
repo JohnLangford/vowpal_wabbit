@@ -363,7 +363,7 @@ void save_load(boosting& o, io_buf& model_file, bool read, bool text)
   }
 }
 
-VW::LEARNER::base_learner* boosting_setup(options_i& options, vw& all)
+VW::LEARNER::base_learner* boosting_setup(VW::setup_base_fn& setup_base, options_i& options, vw& all)
 {
   free_ptr<boosting> data = scoped_calloc_or_throw<boosting>();
   option_group_definition new_options("Boosting");

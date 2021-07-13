@@ -654,7 +654,7 @@ void finish_multiline_example(vw& all, cbify&, multi_ex& ec_seq)
   VW::finish_example(all, ec_seq);
 }
 
-base_learner* cbify_setup(options_i& options, vw& all)
+base_learner* cbify_setup(VW::setup_base_fn& setup_base, options_i& options, vw& all)
 {
   uint32_t num_actions = 0;
   uint32_t cb_continuous_num_actions = 0;
@@ -808,7 +808,7 @@ base_learner* cbify_setup(options_i& options, vw& all)
   return make_base(*l);
 }
 
-base_learner* cbifyldf_setup(options_i& options, vw& all)
+base_learner* cbifyldf_setup(VW::setup_base_fn& setup_base, options_i& options, vw& all)
 {
   auto data = scoped_calloc_or_throw<cbify>();
   bool cbify_ldf_option = false;

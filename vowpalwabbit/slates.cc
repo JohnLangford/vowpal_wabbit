@@ -232,7 +232,7 @@ void learn_or_predict(slates_data& data, VW::LEARNER::multi_learner& base, multi
   }
 }
 
-VW::LEARNER::base_learner* slates_setup(options_i& options, vw& all)
+VW::LEARNER::base_learner* slates_setup(VW::setup_base_fn& setup_base, options_i& options, vw& all)
 {
   auto data = VW::make_unique<slates_data>();
   bool slates_option = false;

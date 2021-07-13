@@ -48,7 +48,7 @@ void predict_or_learn(char&, VW::LEARNER::single_learner& base, example& ec)
   }
 }
 
-VW::LEARNER::base_learner* binary_setup(options_i& options, vw& all)
+VW::LEARNER::base_learner* binary_setup(setup_base_fn& setup_base, options_i& options, vw& all)
 {
   bool binary = false;
   option_group_definition new_options("Binary loss");

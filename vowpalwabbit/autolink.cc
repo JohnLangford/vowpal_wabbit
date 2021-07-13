@@ -86,7 +86,7 @@ void predict_or_learn(VW::autolink& b, VW::LEARNER::single_learner& base, exampl
     b.predict(base, ec);
 }
 
-VW::LEARNER::base_learner* autolink_setup(options_i& options, vw& all)
+VW::LEARNER::base_learner* autolink_setup(VW::setup_base_fn& setup_base, options_i& options, vw& all)
 {
   uint32_t d;
   option_group_definition new_options("Autolink");

@@ -345,7 +345,7 @@ void save_load(data& sm, io_buf& io, bool read, bool text)
 
 using namespace MARGINAL;
 
-VW::LEARNER::base_learner* marginal_setup(options_i& options, vw& all)
+VW::LEARNER::base_learner* marginal_setup(VW::setup_base_fn& setup_base, options_i& options, vw& all)
 {
   free_ptr<MARGINAL::data> d = scoped_calloc_or_throw<MARGINAL::data>();
   std::string marginal;

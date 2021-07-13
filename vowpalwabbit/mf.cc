@@ -185,7 +185,7 @@ void learn(mf& data, single_learner& base, example& ec)
   ec.interactions = saved_interactions;
 }
 
-base_learner* mf_setup(options_i& options, vw& all)
+base_learner* mf_setup(VW::setup_base_fn& setup_base, options_i& options, vw& all)
 {
   auto data = scoped_calloc_or_throw<mf>();
   option_group_definition new_options("Matrix Factorization Reduction");

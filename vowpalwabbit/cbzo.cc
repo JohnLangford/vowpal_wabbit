@@ -316,7 +316,7 @@ void (*get_predict(vw& all, uint8_t policy))(cbzo&, base_learner&, example&)
     THROW("Unknown policy encountered: " << policy)
 }
 
-base_learner* setup(options_i& options, vw& all)
+base_learner* setup(VW::setup_base_fn&, options_i& options, vw& all)
 {
   auto data = scoped_calloc_or_throw<cbzo>();
 

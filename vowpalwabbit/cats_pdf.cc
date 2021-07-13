@@ -159,7 +159,7 @@ void reduction_output::print_update_cb_cont(vw& all, const example& ec)
 ////////////////////////////////////////////////////
 
 // Setup reduction in stack
-LEARNER::base_learner* setup(config::options_i& options, vw& all)
+LEARNER::base_learner* setup(setup_base_fn& setup_base, config::options_i& options, vw& all)
 {
   option_group_definition new_options("Continuous action tree with smoothing with full pdf");
   int num_actions = 0;

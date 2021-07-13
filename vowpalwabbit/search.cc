@@ -2513,7 +2513,7 @@ void parse_neighbor_features(VW::string_view nf_strview, search& sch)
   }
 }
 
-base_learner* setup(options_i& options, vw& all)
+base_learner* setup(VW::setup_base_fn& setup_base, options_i& options, vw& all)
 {
   free_ptr<search> sch = scoped_calloc_or_throw<search>();
   search_private& priv = *sch->priv;

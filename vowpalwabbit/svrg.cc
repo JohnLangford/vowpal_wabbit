@@ -163,7 +163,7 @@ void save_load(svrg& s, io_buf& model_file, bool read, bool text)
 
 using namespace SVRG;
 
-base_learner* svrg_setup(options_i& options, vw& all)
+base_learner* svrg_setup(VW::setup_base_fn&, options_i& options, vw& all)
 {
   auto s = scoped_calloc_or_throw<svrg>();
 

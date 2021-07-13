@@ -163,7 +163,7 @@ float sensitivity(baseline& data, base_learner& base, example& ec)
   return baseline_sens + sens;
 }
 
-base_learner* baseline_setup(options_i& options, vw& all)
+base_learner* baseline_setup(VW::setup_base_fn& setup_base, options_i& options, vw& all)
 {
   auto data = scoped_calloc_or_throw<baseline>();
   bool baseline_option = false;

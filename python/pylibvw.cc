@@ -17,6 +17,7 @@
 #include "slates_label.h"
 #include "simple_label_parser.h"
 #include "shared_data.h"
+#include "reduction_stack.h"
 
 // see http://www.boost.org/doc/libs/1_56_0/doc/html/bbv2/installation.html
 #define BOOST_PYTHON_USE_GCC_SYMBOL_VISIBILITY 1
@@ -300,8 +301,15 @@ search_ptr get_search_ptr(vw_ptr all)
 
 py::object get_options(vw_ptr all, py::object py_class, bool enabled_only)
 {
-  auto opt_manager = OptionManager(*all->options, all->enabled_reductions, py_class);
-  return opt_manager.get_vw_option_pyobjects(enabled_only);
+  if (all->learner_builder)
+  {
+    auto opt_manager = OptionManager(*all->options, all->learner_builder->enabled_reductions, py_class);
+    return opt_manager.get_vw_option_pyobjects(enabled_only);
+  }
+  else
+  {
+    return py::object();
+  }
 }
 
 void my_audit_example(vw_ptr all, example_ptr ec) { GD::print_audit_features(*all, *ec); }
@@ -322,7 +330,11 @@ std::string get_arguments(vw_ptr all)
 py::list get_enabled_reductions(vw_ptr all)
 {
   py::list enabled_reductions;
-  for (auto ex : all->enabled_reductions) { enabled_reductions.append(ex); }
+
+  if (all->learner_builder)
+  {
+    for (auto ex : all->learner_builder->enabled_reductions) { enabled_reductions.append(ex); }
+  }
 
   return enabled_reductions;
 }

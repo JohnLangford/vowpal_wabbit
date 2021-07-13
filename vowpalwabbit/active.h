@@ -15,4 +15,4 @@ struct active
   std::shared_ptr<rand_state> _random_state;
 };
 
-VW::LEARNER::base_learner* active_setup(VW::config::options_i& options, vw& all);
+VW::LEARNER::base_learner* active_setup(VW::setup_base_fn& setup_base, VW::config::options_i& options, vw& all);

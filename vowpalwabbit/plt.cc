@@ -322,7 +322,7 @@ void save_load_tree(plt& p, io_buf& model_file, bool read, bool text)
 
 using namespace plt_ns;
 
-base_learner* plt_setup(options_i& options, vw& all)
+base_learner* plt_setup(VW::setup_base_fn& setup_base, options_i& options, vw& all)
 {
   auto tree = scoped_calloc_or_throw<plt>();
   option_group_definition new_options("Probabilistic Label Tree ");

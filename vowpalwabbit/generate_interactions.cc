@@ -61,7 +61,7 @@ inline void multipredict(INTERACTIONS::interactions_generator& data, VW::LEARNER
   ec.interactions = saved_interactions;
 }
 
-VW::LEARNER::base_learner* generate_interactions_setup(options_i& options, vw& all)
+VW::LEARNER::base_learner* generate_interactions_setup(VW::setup_base_fn& setup_base, options_i& options, vw& all)
 {
   bool leave_duplicate_interactions;
   option_group_definition new_options("Generate interactions");

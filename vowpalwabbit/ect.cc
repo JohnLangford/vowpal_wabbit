@@ -322,7 +322,7 @@ void learn(ect& e, single_learner& base, example& ec)
   ec.pred.multiclass = pred;
 }
 
-base_learner* ect_setup(options_i& options, vw& all)
+base_learner* ect_setup(VW::setup_base_fn& setup_base, options_i& options, vw& all)
 {
   auto data = scoped_calloc_or_throw<ect>();
   std::string link;

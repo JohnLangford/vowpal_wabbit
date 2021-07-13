@@ -300,7 +300,7 @@ void cb_explore_adf_squarecb::save_load(io_buf& io, bool read, bool text)
   }
 }
 
-base_learner* setup(VW::config::options_i& options, vw& all)
+base_learner* setup(VW::setup_base_fn& setup_base, VW::config::options_i& options, vw& all)
 {
   using config::make_option;
   bool cb_explore_adf_option = false;
