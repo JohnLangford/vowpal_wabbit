@@ -7,7 +7,7 @@
 
 #include "test_common.h"
 
-#include "namespaced_features.h"
+#include "namespaced_feature_store.h"
 
 BOOST_AUTO_TEST_CASE(namespaced_features_test)
 {

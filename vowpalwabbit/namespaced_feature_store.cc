@@ -2,7 +2,7 @@
 // individual contributors. All rights reserved. Released under a BSD (revised)
 // license as described in the file LICENSE.
 
-#include "namespaced_features.h"
+#include "namespaced_feature_store.h"
 #include "vw_exception.h"
 
 using namespace VW;
