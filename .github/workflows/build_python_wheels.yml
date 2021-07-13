@@ -18,7 +18,6 @@ jobs:
     strategy:
       matrix:
         config:
-        - { version: 3.5, base_path: /opt/python/cp35-cp35m/, include_dir_name: python3.5m/, experimental: false }
         - { version: 3.6, base_path: /opt/python/cp36-cp36m/, include_dir_name: python3.6m/, experimental: false }
         - { version: 3.7, base_path: /opt/python/cp37-cp37m/, include_dir_name: python3.7m/, experimental: false }
         - { version: 3.8, base_path: /opt/python/cp38-cp38/, include_dir_name: python3.8/, experimental: false }
@@ -45,7 +44,6 @@ jobs:
     strategy:
       matrix:
         config:
-        - { version: 3.5, experimental: false }
         - { version: 3.6, experimental: false }
         - { version: 3.7, experimental: false }
         - { version: 3.8, experimental: false }

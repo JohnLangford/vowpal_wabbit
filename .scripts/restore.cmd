@@ -43,10 +43,6 @@ ECHO Restoring "%vwRoot%\cs\unittest\packages.config"
 "%nugetPath%" restore -o "%vwRoot%\vowpalwabbit\packages" "%vwRoot%\cs\unittest\packages.config"
 ECHO.
 
-ECHO Restoring "%vwRoot%\python\windows27\packages.config"
-"%nugetPath%" restore -o "%vwRoot%\vowpalwabbit\packages" "%vwRoot%\python\windows27\packages.config"
-ECHO.
-
 ECHO Restoring "%vwRoot%\vowpalwabbit\packages.config"
 "%nugetPath%" restore -o "%vwRoot%\vowpalwabbit\packages" "%vwRoot%\vowpalwabbit\packages.config"
 ECHO.
