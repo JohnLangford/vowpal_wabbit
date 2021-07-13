@@ -208,16 +208,20 @@ bool has_action(multi_ex& cb_ex) { return !cb_ex.empty(); }
 // Copy other slot namespaces to shared
 void inject_slot_features(example* shared, example* slot)
 {
-  for (auto index : slot->indices)
+  for (auto& bucket : slot->feature_space)
   {
-    // constant namespace should be ignored, as it already exists and we don't want to double it up.
-    if (index == constant_namespace) { continue; }
-
-    if (index == default_namespace)  // slot default namespace has a special namespace in shared
-    { LabelDict::add_example_namespace(*shared, ccb_slot_namespace, slot->feature_space[default_namespace]); }
-    else
+    for (auto it = bucket.begin(); it != bucket.end(); ++it)
     {
-      LabelDict::add_example_namespace(*shared, index, slot->feature_space[index]);
+      // constant namespace should be ignored, as it already exists and we don't want to double it up.
+      if (it->index == constant_namespace) { continue; }
+
+      // slot default namespace has a special namespace in shared
+      if (it->index == default_namespace)
+      { LabelDict::add_example_namespace(*shared, ccb_slot_namespace, ccb_slot_namespace, it->feats); }
+      else
+      {
+        LabelDict::add_example_namespace(*shared, it->index, it->hash, it->feats);
+      }
     }
   }
 }
@@ -243,40 +247,34 @@ void inject_slot_id(ccb& data, example* shared, size_t id)
     index = data.slot_id_hashes[id];
   }
 
-  shared->feature_space[ccb_id_namespace].push_back(1., index);
-  shared->indices.push_back(ccb_id_namespace);
+  auto& feat_group = shared->feature_space.get_or_create(ccb_id_namespace, ccb_id_namespace);
+  feat_group.clear();
+  feat_group.push_back(1., index);
 
   if (audit)
   {
     auto current_index_str = "index" + std::to_string(id);
-    shared->feature_space[ccb_id_namespace].space_names.push_back(
-        audit_strings(data.id_namespace_str, current_index_str));
+    feat_group.space_names.push_back(audit_strings(data.id_namespace_str, current_index_str));
   }
 }
 
-// Since the slot id is the only thing in this namespace, the popping the value off will work correctly.
-template <bool audit>
-void remove_slot_id(example* shared)
-{
-  shared->feature_space[ccb_id_namespace].indicies.pop_back();
-  shared->feature_space[ccb_id_namespace].values.pop_back();
-  shared->indices.pop_back();
-
-  if (audit) { shared->feature_space[ccb_id_namespace].space_names.pop_back(); }
-}
+void remove_slot_id(example* shared) { shared->feature_space.remove(ccb_id_namespace, ccb_id_namespace); }
 
 void remove_slot_features(example* shared, example* slot)
 {
-  for (auto index : slot->indices)
+  for (auto& bucket : slot->feature_space)
   {
-    // constant namespace should be ignored, as it already exists and we don't want to double it up.
-    if (index == constant_namespace) { continue; }
-
-    if (index == default_namespace)  // slot default namespace has a special namespace in shared
-    { LabelDict::del_example_namespace(*shared, ccb_slot_namespace, slot->feature_space[default_namespace]); }
-    else
+    for (auto it = bucket.begin(); it != bucket.end(); ++it)
     {
-      LabelDict::del_example_namespace(*shared, index, slot->feature_space[index]);
+      // constant namespace should be ignored, as it already exists and we don't want to double it up.
+      if (it->index == constant_namespace) { continue; }
+
+      if (it->index == default_namespace)  // slot default namespace has a special namespace in shared
+      { LabelDict::del_example_namespace(*shared, ccb_slot_namespace, ccb_slot_namespace, it->feats); }
+      else
+      {
+        LabelDict::del_example_namespace(*shared, it->index, it->hash, it->feats);
+      }
     }
   }
 }
@@ -400,7 +398,7 @@ void learn_or_predict(ccb& data, multi_learner& base, multi_ex& examples)
     // We decide that user defined features exist if there is at least one feature space which is not the constant
     // namespace.
     const bool user_defined_slot_features_exist =
-        !data.slots.empty() && !data.slots[0]->indices.empty() && data.slots[0]->indices[0] != constant_namespace;
+        !data.slots.empty() && !data.slots[0]->indices.empty() && *data.slots[0]->indices.begin() != constant_namespace;
     data.has_seen_multi_slot_example = data.has_seen_multi_slot_example || user_defined_slot_features_exist;
   }
   const bool should_augment_with_slot_info = data.has_seen_multi_slot_example;
@@ -476,14 +474,7 @@ void learn_or_predict(ccb& data, multi_learner& base, multi_ex& examples)
 
       remove_slot_features(data.shared, slot);
 
-      if (should_augment_with_slot_info)
-      {
-        if (data.all->audit || data.all->hash_inv) { remove_slot_id<true>(data.shared); }
-        else
-        {
-          remove_slot_id<false>(data.shared);
-        }
-      }
+      if (should_augment_with_slot_info) { remove_slot_id(data.shared); }
 
       // Put back the original shared example tag.
       std::swap(data.shared->tag, slot->tag);
@@ -561,9 +552,7 @@ void output_example(vw& all, ccb& c, multi_ex& ec_seq)
   }
 
   if (num_labelled > 0 && num_labelled < slots.size())
-  {
-    logger::errlog_warn("Unlabeled example in train set, was this intentional?");
-  }
+  { logger::errlog_warn("Unlabeled example in train set, was this intentional?"); }
 
   bool holdout_example = num_labelled > 0;
   for (const auto& example : ec_seq) { holdout_example &= example->test_only; }

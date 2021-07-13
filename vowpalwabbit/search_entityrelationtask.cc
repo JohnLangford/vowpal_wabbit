@@ -407,7 +407,12 @@ void run(Search::search& sch, multi_ex& ec)
 // this is totally bogus for the example -- you'd never actually do this!
 void update_example_indicies(bool /* audit */, example* ec, uint64_t mult_amount, uint64_t plus_amount)
 {
-  for (features& fs : *ec)
-    for (feature_index& idx : fs.indicies) idx = ((idx * mult_amount) + plus_amount);
+  for (auto& bucket : *ec)
+  {
+    for (auto& fs : bucket)
+    {
+      for (feature_index& idx : fs.feats.indicies) { idx = ((idx * mult_amount) + plus_amount); }
+    }
+  }
 }
 }  // namespace EntityRelationTask

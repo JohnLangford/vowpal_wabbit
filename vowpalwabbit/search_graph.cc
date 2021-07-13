@@ -248,15 +248,16 @@ void add_edge_features_group_fn(task_data& D, float fv, uint64_t fx)
   for (size_t k = 0; k < D.numN; k++)
   {
     if (D.neighbor_predictions[k] == 0.) continue;
-    node->feature_space[neighbor_namespace].push_back(
-        fv * D.neighbor_predictions[k], static_cast<uint64_t>((fx2 + 348919043 * k) * D.multiplier) & D.mask);
+    node->feature_space.get(neighbor_namespace, neighbor_namespace)
+        .push_back(
+            fv * D.neighbor_predictions[k], static_cast<uint64_t>((fx2 + 348919043 * k) * D.multiplier) & D.mask);
   }
 }
 
 void add_edge_features_single_fn(task_data& D, float fv, uint64_t fx)
 {
   example* node = D.cur_node;
-  features& fs = node->feature_space[neighbor_namespace];
+  features& fs = node->feature_space.get(neighbor_namespace, neighbor_namespace);
   uint64_t fx2 = fx / D.multiplier;
   size_t k = static_cast<size_t>(D.neighbor_predictions[0]);
   fs.push_back(fv, static_cast<uint32_t>((fx2 + 348919043 * k) * D.multiplier) & D.mask);
@@ -324,29 +325,33 @@ void add_edge_features(Search::search& sch, task_data& D, size_t n, multi_ex& ec
     else  // lots of edges
       GD::foreach_feature<task_data, uint64_t, add_edge_features_group_fn>(sch.get_vw_pointer_unsafe(), edge, D);
   }
-  ec[n]->indices.push_back(neighbor_namespace);
+  ec[n]->feature_space.get_or_create(neighbor_namespace, neighbor_namespace);
   ec[n]->reset_total_sum_feat_sq();
-  ec[n]->num_features += ec[n]->feature_space[neighbor_namespace].size();
+  ec[n]->num_features += ec[n]->feature_space.get(neighbor_namespace, neighbor_namespace).size();
 
   vw& all = sch.get_vw_pointer_unsafe();
+  auto* ex = ec[n];
   for (const auto& i : all.interactions)
   {
     if (i.size() != 2) continue;
-    int i0 = static_cast<int>(i[0]);
-    int i1 = static_cast<int>(i[1]);
-    if ((i0 == static_cast<int>(neighbor_namespace)) || (i1 == static_cast<int>(neighbor_namespace)))
+    auto i0 = i[0];
+    auto i1 = i[1];
+    if ((i0 == neighbor_namespace) || (i1 == neighbor_namespace))
     {
-      ec[n]->num_features += ec[n]->feature_space[i0].size() * ec[n]->feature_space[i1].size();
+      for (auto& ns0_feat_group : ex->feature_space.get_list(i0))
+      {
+        for (auto& ns1_feat_group : ex->feature_space.get_list(i1))
+        { ex->num_features += ns0_feat_group.feats.size() * ns1_feat_group.feats.size(); }
+      }
     }
   }
 }
 
 void del_edge_features(task_data& /*D*/, uint32_t n, multi_ex& ec)
 {
-  ec[n]->indices.pop_back();
-  features& fs = ec[n]->feature_space[neighbor_namespace];
+  features& fs = ec[n]->feature_space.get(neighbor_namespace, neighbor_namespace);
   ec[n]->num_features -= fs.size();
-  fs.clear();
+  ec[n]->feature_space.remove(neighbor_namespace, neighbor_namespace);
 }
 
 #define IDX(i, j) ((i) * (D.K + 1) + j)

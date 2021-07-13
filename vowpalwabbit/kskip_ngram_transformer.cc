@@ -5,47 +5,49 @@
 #include "kskip_ngram_transformer.h"
 
 #include "io/logger.h"
+#include "feature_group.h"
 
 #include <memory>
 
 namespace logger = VW::io::logger;
 
-void add_grams(
-    size_t ngram, size_t skip_gram, features& fs, size_t initial_length, std::vector<size_t>& gram_mask, size_t skips)
+void add_grams(size_t ngram, size_t skip_gram, features& destination_group, features& source_group,
+    size_t initial_length, std::vector<size_t>& gram_mask, size_t skips)
 {
   if (ngram == 0 && gram_mask.back() < initial_length)
   {
     size_t last = initial_length - gram_mask.back();
     for (size_t i = 0; i < last; i++)
     {
-      uint64_t new_index = fs.indicies[i];
+      uint64_t new_index = source_group.indicies[i];
       for (size_t n = 1; n < gram_mask.size(); n++)
-      { new_index = new_index * quadratic_constant + fs.indicies[i + gram_mask[n]]; }
+      { new_index = new_index * quadratic_constant + source_group.indicies[i + gram_mask[n]]; }
 
-      fs.push_back(1., new_index);
-      if (!fs.space_names.empty())
+      destination_group.push_back(1., new_index);
+      if (!destination_group.space_names.empty())
       {
-        std::string feature_name(fs.space_names[i].second);
+        std::string feature_name(destination_group.space_names[i].second);
         for (size_t n = 1; n < gram_mask.size(); n++)
         {
           feature_name += std::string("^");
-          feature_name += std::string(fs.space_names[i + gram_mask[n]].second);
+          feature_name += std::string(destination_group.space_names[i + gram_mask[n]].second);
         }
-        fs.space_names.push_back(audit_strings(fs.space_names[i].first, feature_name));
+        destination_group.space_names.push_back(audit_strings(destination_group.space_names[i].first, feature_name));
       }
     }
   }
   if (ngram > 0)
   {
     gram_mask.push_back(gram_mask.back() + 1 + skips);
-    add_grams(ngram - 1, skip_gram, fs, initial_length, gram_mask, 0);
+    add_grams(ngram - 1, skip_gram, destination_group, source_group, initial_length, gram_mask, 0);
     gram_mask.pop_back();
   }
-  if (skip_gram > 0 && ngram > 0) { add_grams(ngram, skip_gram - 1, fs, initial_length, gram_mask, skips + 1); }
+  if (skip_gram > 0 && ngram > 0)
+  { add_grams(ngram, skip_gram - 1, destination_group, source_group, initial_length, gram_mask, skips + 1); }
 }
 
 void compile_gram(const std::vector<std::string>& grams, std::array<uint32_t, NUM_NAMESPACES>& dest,
-		  const std::string& descriptor, bool /*quiet*/)
+    const std::string& descriptor, bool /*quiet*/)
 {
   for (const auto& gram : grams)
   {
@@ -70,14 +72,34 @@ void compile_gram(const std::vector<std::string>& grams, std::array<uint32_t, NU
 
 void VW::kskip_ngram_transformer::generate_grams(example* ex)
 {
-  for (namespace_index index : ex->indices)
+  for (namespace_index index : ex->feature_space.indices())
   {
-    size_t length = ex->feature_space[index].size();
+    auto& feat_group_list = ex->feature_space.get_list(index);
+    features* destination_feature_group = &feat_group_list.front().feats;
+    features* source_feature_group = nullptr;
+    std::unique_ptr<features> generated_feature_group;
+
+    if (feat_group_list.size() > 1)
+    {
+      logger::errlog_warn(
+          "Sentence based ngram concatenates feature groups that start with the same letter. This is deprecated "
+          "behavior and in future it will change to treating every namespace as a separate sentence even if the first "
+          "character is the same.");
+      generated_feature_group = VW::make_unique<features>();
+      source_feature_group = generated_feature_group.get();
+      for (auto& ns_fs : feat_group_list) { generated_feature_group->concat(ns_fs.feats); }
+    }
+    else
+    {
+      source_feature_group = &feat_group_list.front().feats;
+    }
+
+    size_t length = source_feature_group->size();
     for (size_t n = 1; n < ngram_definition[index]; n++)
     {
       gram_mask.clear();
       gram_mask.push_back(0);
-      add_grams(n, skip_definition[index], ex->feature_space[index], length, gram_mask, 0);
+      add_grams(n, skip_definition[index], *destination_feature_group, *source_feature_group, length, gram_mask, 0);
     }
   }
 }

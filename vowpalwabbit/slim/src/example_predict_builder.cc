@@ -11,6 +11,7 @@ example_predict_builder::example_predict_builder(
   _feature_index_bit_mask = ((uint64_t)1 << feature_index_num_bits) - 1;
   add_namespace(namespace_name[0]);
   _namespace_hash = hashstring(namespace_name, strlen(namespace_name), 0);
+  _ex->feature_space.get_or_create(_namespace_idx, _namespace_hash);
 }
 
 example_predict_builder::example_predict_builder(
@@ -19,23 +20,24 @@ example_predict_builder::example_predict_builder(
 {
   _feature_index_bit_mask = ((uint64_t)1 << feature_index_num_bits) - 1;
   add_namespace(namespace_idx);
+  _ex->feature_space.get_or_create(_namespace_idx, _namespace_hash);
 }
 
 void example_predict_builder::add_namespace(namespace_index feature_group)
 {
   _namespace_idx = feature_group;
-  _ex->indices.unique_add_sorted(feature_group);
 }
 
 void example_predict_builder::push_feature_string(const char* feature_name, feature_value value)
 {
   feature_index feature_hash =
       _feature_index_bit_mask & hashstring(feature_name, strlen(feature_name), _namespace_hash);
-  _ex->feature_space[_namespace_idx].push_back(value, feature_hash);
+  _ex->feature_space.get_or_null(_namespace_hash)->push_back(value, feature_hash);
 }
 
 void example_predict_builder::push_feature(feature_index feature_idx, feature_value value)
 {
-  _ex->feature_space[_namespace_idx].push_back(value, _namespace_hash + feature_idx);
+  auto* fs = _ex->feature_space.get_or_null(_namespace_hash);
+  fs->push_back(value, _namespace_hash + feature_idx);
 }
 };  // namespace vw_slim

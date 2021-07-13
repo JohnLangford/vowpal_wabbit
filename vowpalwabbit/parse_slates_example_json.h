@@ -183,8 +183,13 @@ void parse_context(const Value& context, vw& all, v_array<example*>& examples, V
         if (dedup_examples->find(dedup_id) == dedup_examples->end()) { THROW("dedup id not found: " << dedup_id); }
 
         auto* stored_ex = (*dedup_examples)[dedup_id];
-        ex->indices = stored_ex->indices;
-        for (auto& ns : ex->indices) { ex->feature_space[ns] = stored_ex->feature_space[ns]; }
+
+        for (auto& bucket : *stored_ex)
+        {
+          for (auto it = bucket.begin(); it != bucket.end(); ++it)
+          { ex->feature_space.get_or_create(it->index, it->hash).concat(it->feats); }
+        }
+
         ex->ft_offset = stored_ex->ft_offset;
         ex->l.slates.slot_id = stored_ex->l.slates.slot_id;
       }
@@ -212,6 +217,8 @@ void parse_context(const Value& context, vw& all, v_array<example*>& examples, V
       assert(namespaces.size() == 0);
     }
   }
+
+  for (auto* ex : examples) { remove_empty_namespaces(ex->feature_space); }
 }
 
 template <bool audit>

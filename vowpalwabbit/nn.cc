@@ -86,10 +86,9 @@ void finish_setup(nn& n, vw& all)
   // TODO: output_layer audit
 
   n.output_layer.interactions = &all.interactions;
-  n.output_layer.indices.push_back(nn_output_namespace);
   uint64_t nn_index = nn_constant << all.weights.stride_shift();
 
-  features& fs = n.output_layer.feature_space[nn_output_namespace];
+  features& fs = n.output_layer.feature_space.get_or_create(nn_output_namespace, nn_output_namespace);
   for (unsigned int i = 0; i < n.k; ++i)
   {
     fs.push_back(1., nn_index);
@@ -112,20 +111,19 @@ void finish_setup(nn& n, vw& all)
 
   // TODO: not correct if --noconstant
   n.hiddenbias.interactions = &all.interactions;
-  n.hiddenbias.indices.push_back(constant_namespace);
-  n.hiddenbias.feature_space[constant_namespace].push_back(1, constant);
-  if (all.audit || all.hash_inv)
-    n.hiddenbias.feature_space[constant_namespace].space_names.push_back(audit_strings("", "HiddenBias"));
+  auto& constant_fs = n.hiddenbias.feature_space.get_or_create(constant_namespace, constant_namespace);
+  constant_fs.push_back(1, constant);
+  if (all.audit || all.hash_inv) { constant_fs.space_names.push_back(audit_strings("", "HiddenBias")); }
   n.hiddenbias.l.simple.label = FLT_MAX;
   n.hiddenbias.weight = 1;
 
   n.outputweight.interactions = &all.interactions;
-  n.outputweight.indices.push_back(nn_output_namespace);
-  features& outfs = n.output_layer.feature_space[nn_output_namespace];
-  n.outputweight.feature_space[nn_output_namespace].push_back(outfs.values[0], outfs.indicies[0]);
-  if (all.audit || all.hash_inv)
-    n.outputweight.feature_space[nn_output_namespace].space_names.push_back(audit_strings("", "OutputWeight"));
-  n.outputweight.feature_space[nn_output_namespace].values[0] = 1;
+  auto& outputweight_output_fs = n.outputweight.feature_space.get_or_create(nn_output_namespace, nn_output_namespace);
+
+  features& outfs = n.output_layer.feature_space.get(nn_output_namespace, nn_output_namespace);
+  outputweight_output_fs.push_back(outfs.values[0], outfs.indicies[0]);
+  if (all.audit || all.hash_inv) outputweight_output_fs.space_names.push_back(audit_strings("", "OutputWeight"));
+  outputweight_output_fs.values[0] = 1;
   n.outputweight.l.simple.label = FLT_MAX;
   n.outputweight.weight = 1;
   n.outputweight._reduction_features.template get<simple_label_reduction_features>().initial = 0.f;
@@ -221,7 +219,7 @@ void predict_or_learn_multi(nn& n, single_learner& base, example& ec)
   CONVERSE:  // That's right, I'm using goto.  So sue me.
 
     n.output_layer.reset_total_sum_feat_sq();
-    n.output_layer.feature_space[nn_output_namespace].sum_feat_sq = 1;
+    n.output_layer.feature_space.get(nn_output_namespace, nn_output_namespace).sum_feat_sq = 1;
 
     n.outputweight.ft_offset = ec.ft_offset;
 
@@ -235,11 +233,11 @@ void predict_or_learn_multi(nn& n, single_learner& base, example& ec)
     for (unsigned int i = 0; i < n.k; ++i)
     {
       float sigmah = (dropped_out[i]) ? 0.0f : dropscale * fasttanh(hidden_units[i].scalar);
-      features& out_fs = n.output_layer.feature_space[nn_output_namespace];
+      features& out_fs = n.output_layer.feature_space.get(nn_output_namespace, nn_output_namespace);
       out_fs.values[i] = sigmah;
       out_fs.sum_feat_sq += sigmah * sigmah;
 
-      n.outputweight.feature_space[nn_output_namespace].indicies[0] = out_fs.indicies[i];
+      n.outputweight.feature_space.get(nn_output_namespace, nn_output_namespace).indicies[0] = out_fs.indicies[i];
       base.predict(n.outputweight, n.k);
       float wf = n.outputweight.pred.scalar;
 
@@ -263,19 +261,20 @@ void predict_or_learn_multi(nn& n, single_learner& base, example& ec)
       // TODO: this is not correct if there is something in the
       // nn_output_namespace but at least it will not leak memory
       // in that case
-      ec.indices.push_back(nn_output_namespace);
+      ec.feature_space.get_or_create(nn_output_namespace, nn_output_namespace);
 
       /*
        * Features shuffling:
-       * save_nn_output_namespace contains what was in ec.feature_space[]
-       * ec.feature_space[] contains a COPY of n.output_layer.feature_space[]
+       * save_nn_output_namespace contains what was in ec.feature_space.get(]
+       * ec.feature_space.get(] contains a COPY of n.output_layer.feature_space.get(]
        * learn/predict is called
-       * ec.feature_space[] is reverted to its original value
+       * ec.feature_space.get(] is reverted to its original value
        * save_nn_output_namespace contains the COPIED value
        * save_nn_output_namespace is destroyed
        */
-      features save_nn_output_namespace = std::move(ec.feature_space[nn_output_namespace]);
-      ec.feature_space[nn_output_namespace] = n.output_layer.feature_space[nn_output_namespace];
+      features save_nn_output_namespace = std::move(ec.feature_space.get(nn_output_namespace, nn_output_namespace));
+      ec.feature_space.get(nn_output_namespace, nn_output_namespace) =
+          n.output_layer.feature_space.get(nn_output_namespace, nn_output_namespace);
 
       if (is_learn)
         base.learn(ec, n.k);
@@ -283,9 +282,9 @@ void predict_or_learn_multi(nn& n, single_learner& base, example& ec)
         base.predict(ec, n.k);
       n.output_layer.partial_prediction = ec.partial_prediction;
       n.output_layer.loss = ec.loss;
-      ec.feature_space[nn_output_namespace].sum_feat_sq = 0;
-      std::swap(ec.feature_space[nn_output_namespace], save_nn_output_namespace);
-      ec.indices.pop_back();
+      ec.feature_space.get(nn_output_namespace, nn_output_namespace).sum_feat_sq = 0;
+      std::swap(ec.feature_space.get(nn_output_namespace, nn_output_namespace), save_nn_output_namespace);
+      ec.feature_space.remove(nn_output_namespace, nn_output_namespace);
     }
     else
     {
@@ -331,10 +330,11 @@ void predict_or_learn_multi(nn& n, single_learner& base, example& ec)
           {
             if (!dropped_out[i])
             {
-              float sigmah = n.output_layer.feature_space[nn_output_namespace].values[i] / dropscale;
+              float sigmah =
+                  n.output_layer.feature_space.get(nn_output_namespace, nn_output_namespace).values[i] / dropscale;
               float sigmahprime = dropscale * (1.0f - sigmah * sigmah);
-              n.outputweight.feature_space[nn_output_namespace].indicies[0] =
-                  n.output_layer.feature_space[nn_output_namespace].indicies[i];
+              n.outputweight.feature_space.get(nn_output_namespace, nn_output_namespace).indicies[0] =
+                  n.output_layer.feature_space.get(nn_output_namespace, nn_output_namespace).indicies[i];
               base.predict(n.outputweight, n.k);
               float nu = n.outputweight.pred.scalar;
               float gradhw = 0.5f * nu * gradient * sigmahprime;

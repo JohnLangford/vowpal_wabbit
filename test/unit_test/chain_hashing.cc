@@ -28,7 +28,7 @@ BOOST_AUTO_TEST_CASE(chain_hashing_between_formats)
     examples.push_back(&VW::get_unused_example(vw));
     auto example = examples[0];
     VW::read_line(*vw, example, text.c_str());
-    auto& indices = example->feature_space['f'].indicies;
+    auto& indices = example->feature_space.get('f', VW::hash_space(*vw, "f")).indicies;
     txt_idx = indices[0];
     VW::finish_example(*vw, examples);
   }
@@ -36,7 +36,7 @@ BOOST_AUTO_TEST_CASE(chain_hashing_between_formats)
     auto examples = parse_json(*vw, json_text);
     auto example = examples[0];
 
-    auto& indices = example->feature_space['f'].indicies;
+    auto& indices = example->feature_space.get('f', VW::hash_space(*vw, "f")).indicies;
     json_idx = indices[0];
     VW::finish_example(*vw, examples);
   }

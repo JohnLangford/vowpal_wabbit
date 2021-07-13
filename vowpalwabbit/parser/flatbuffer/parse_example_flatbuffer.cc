@@ -13,6 +13,8 @@
 #include "../../best_constant.h"
 #include "parse_example_flatbuffer.h"
 
+#include "../../io/logger.h"
+
 namespace VW
 {
 namespace parsers
@@ -162,21 +164,49 @@ void parser::parse_multi_example(vw* all, example* ae, const MultiExample* eg)
   _multi_ex_index++;
 }
 
-void parser::parse_namespaces(vw* all, example* ae, const Namespace* ns)
+namespace_index get_ns_index(const Namespace* ns)
 {
-  namespace_index temp_index;
-  if (flatbuffers::IsFieldPresent(ns, Namespace::VT_NAME))
+  if (flatbuffers::IsFieldPresent(ns, Namespace::VT_HASH)) { return ns->hash(); }
+  else if (flatbuffers::IsFieldPresent(ns, Namespace::VT_NAME))
   {
-    temp_index = static_cast<uint8_t>(ns->name()->c_str()[0]);
-    _c_hash = all->example_parser->hasher(ns->name()->c_str(), ns->name()->size(), all->hash_seed);
+    return static_cast<uint8_t>(ns->name()->c_str()[0]);
   }
   else
   {
-    temp_index = ns->hash();
+    THROW("Either hash or name must be provided in the flatbuffer to determine the namespace index");
   }
-  ae->indices.push_back(temp_index);
+}
 
-  auto& fs = ae->feature_space[temp_index];
+uint64_t get_full_ns_hash(const vw* all, const Namespace* ns)
+{
+  if (flatbuffers::IsFieldPresent(ns, Namespace::VT_FULL_HASH)) { return ns->full_hash(); }
+  else if (flatbuffers::IsFieldPresent(ns, Namespace::VT_NAME))
+  {
+    return all->example_parser->hasher(ns->name()->c_str(), ns->name()->size(), all->hash_seed);
+  }
+  else
+  {
+    if (ns->hash() == 32)
+    {
+      // Special case, default namespace corresponds to a hash of 0 AND flatbuffers will not serialize a value of 0. So
+      // this is surfaced as a missing VT_FULL_HASH field.
+      return 0;
+    }
+
+    VW::io::logger::errlog_warn(
+        "Flatbuffer file is missing full_hash field. Falling back to using the namespace index for the namespace hash. "
+        "May result in unexpected behavior for interactions.");
+    return ns->hash();
+  }
+}
+
+void parser::parse_namespaces(vw* all, example* ae, const Namespace* ns)
+{
+  namespace_index ns_index = get_ns_index(ns);
+  uint64_t ns_hash = get_full_ns_hash(all, ns);
+  _c_hash = ns_hash;
+
+  auto& fs = ae->feature_space.get_or_create(ns_index, ns_hash);
 
   for (const auto& feature : *(ns->features()))
   { parse_features(all, fs, feature, (all->audit || all->hash_inv) ? ns->name() : nullptr); }

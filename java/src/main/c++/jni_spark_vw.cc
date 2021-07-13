@@ -384,14 +384,6 @@ JNIEXPORT void JNICALL Java_org_vowpalwabbit_spark_VowpalWabbitExample_clear(JNI
   }
 }
 
-void addNamespaceIfNotExists(vw* all, example* ex, char ns)
-{
-  if (std::find(ex->indices.begin(), ex->indices.end(), ns) == ex->indices.end())
-  {
-    ex->indices.push_back(ns);
-  }
-}
-
 JNIEXPORT void JNICALL Java_org_vowpalwabbit_spark_VowpalWabbitExample_addToNamespaceDense(
     JNIEnv* env, jobject exampleObj, jchar ns, jint weight_index_base, jdoubleArray values)
 {
@@ -399,9 +391,7 @@ JNIEXPORT void JNICALL Java_org_vowpalwabbit_spark_VowpalWabbitExample_addToName
 
   try
   {
-    addNamespaceIfNotExists(all, ex, ns);
-
-    auto features = ex->feature_space.data() + ns;
+    auto& features = ex->feature_space.get_or_create(weight_index_base, ns);
 
     CriticalArrayGuard valuesGuard(env, values);
     double* values0 = (double*)valuesGuard.data();
@@ -410,8 +400,8 @@ JNIEXPORT void JNICALL Java_org_vowpalwabbit_spark_VowpalWabbitExample_addToName
     int mask = (1 << all->num_bits) - 1;
 
     // pre-allocate
-    features->values.resize(features->values.end() - features->values.begin() + size);
-    features->indicies.resize(features->indicies.end() - features->indicies.begin() + size);
+    features.values.reserve(features.values.capacity() + size);
+    features.indicies.reserve(features.indicies.capacity() + size);
 
     double* values_itr = values0;
     double* values_end = values0 + size;
@@ -420,8 +410,8 @@ JNIEXPORT void JNICALL Java_org_vowpalwabbit_spark_VowpalWabbitExample_addToName
       float x = *values_itr;
       if (x != 0)
       {
-        features->values.push_back_unchecked(x);
-        features->indicies.push_back_unchecked(weight_index_base & mask);
+        features.values.push_back_unchecked(x);
+        features.indicies.push_back_unchecked(weight_index_base & mask);
       }
     }
   }
@@ -432,15 +422,13 @@ JNIEXPORT void JNICALL Java_org_vowpalwabbit_spark_VowpalWabbitExample_addToName
 }
 
 JNIEXPORT void JNICALL Java_org_vowpalwabbit_spark_VowpalWabbitExample_addToNamespaceSparse(
-    JNIEnv* env, jobject exampleObj, jchar ns, jintArray indices, jdoubleArray values)
+    JNIEnv* env, jobject exampleObj, jchar ns, jint baseIndex, jintArray indices, jdoubleArray values)
 {
   INIT_VARS
 
   try
   {
-    addNamespaceIfNotExists(all, ex, ns);
-
-    auto features = ex->feature_space.data() + ns;
+    auto& features = ex->feature_space.get_or_create(baseIndex, ns);
 
     CriticalArrayGuard indicesGuard(env, indices);
     int* indices0 = (int*)indicesGuard.data();
@@ -452,8 +440,8 @@ JNIEXPORT void JNICALL Java_org_vowpalwabbit_spark_VowpalWabbitExample_addToName
     int mask = (1 << all->num_bits) - 1;
 
     // pre-allocate
-    features->values.resize(features->values.end() - features->values.begin() + size);
-    features->indicies.resize(features->indicies.end() - features->indicies.begin() + size);
+    features.values.reserve(features.values.capacity() + size);
+    features.indicies.reserve(features.indicies.capacity() + size);
 
     int* indices_itr = indices0;
     int* indices_end = indices0 + size;
@@ -463,8 +451,8 @@ JNIEXPORT void JNICALL Java_org_vowpalwabbit_spark_VowpalWabbitExample_addToName
       float x = *values_itr;
       if (x != 0)
       {
-        features->values.push_back_unchecked(x);
-        features->indicies.push_back_unchecked(*indices_itr & mask);
+        features.values.push_back_unchecked(x);
+        features.indicies.push_back_unchecked(*indices_itr & mask);
       }
     }
   }
@@ -654,10 +642,13 @@ JNIEXPORT jstring JNICALL Java_org_vowpalwabbit_spark_VowpalWabbitExample_toStri
         ostr << (int)ns << ",";
       }
 
-      for (auto& f : ex->feature_space[ns])
+      for (const auto& ns_fs : ex->feature_space.get_list(ns))
       {
-        auto idx = f.index();
-        ostr << (idx & all->weights.mask()) << "/" << idx << ":" << f.value() << ", ";
+        for (const auto& f : ns_fs.feats)
+        {
+          auto idx = f.index();
+          ostr << (idx & all->weights.mask()) << "/" << idx << ":" << f.value() << ", ";
+        }
       }
     }
 

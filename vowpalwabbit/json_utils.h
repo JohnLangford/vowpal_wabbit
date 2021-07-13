@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "feature_group.h"
+#include "namespaced_feature_store.h"
 #include "global_data.h"
 #include "hash.h"
 #include "vw.h"
@@ -58,13 +59,27 @@ struct Namespace
   }
 };
 
+inline void remove_empty_namespaces(VW::namespaced_feature_store& feature_space)
+{
+  std::vector<std::pair<namespace_index, uint64_t>> hashes_to_remove;
+  for (const auto& group_list : feature_space)
+  {
+    for (const auto& ns_fs : group_list)
+    {
+      if (ns_fs.feats.empty()) { hashes_to_remove.emplace_back(ns_fs.index, ns_fs.hash); }
+    }
+  }
+
+  for (auto idx_hash : hashes_to_remove) { feature_space.remove(idx_hash.first, idx_hash.second); }
+}
+
 template <bool audit>
 void push_ns(example* ex, const char* ns, std::vector<Namespace<audit>>& namespaces, vw& all)
 {
   Namespace<audit> n;
   n.feature_group = ns[0];
   n.namespace_hash = VW::hash_space_cstr(all, ns);
-  n.ftrs = ex->feature_space.data() + ns[0];
+  n.ftrs = &ex->feature_space.get_or_create(ns[0], n.namespace_hash);
   n.feature_count = 0;
   n.name = ns;
   namespaces.push_back(std::move(n));
@@ -73,13 +88,5 @@ void push_ns(example* ex, const char* ns, std::vector<Namespace<audit>>& namespa
 template <bool audit>
 void pop_ns(example* ex, std::vector<Namespace<audit>>& namespaces)
 {
-  auto& ns = namespaces.back();
-  if (ns.feature_count > 0)
-  {
-    auto feature_group = ns.feature_group;
-    // Do not insert feature_group if it already exists.
-    if (std::find(ex->indices.begin(), ex->indices.end(), feature_group) == ex->indices.end())
-    { ex->indices.push_back(feature_group); }
-  }
   namespaces.pop_back();
 }

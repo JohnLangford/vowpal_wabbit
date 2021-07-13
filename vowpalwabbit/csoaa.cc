@@ -178,8 +178,11 @@ struct ldf
 
 bool ec_is_label_definition(example& ec)  // label defs look like "0:___" or just "label:___"
 {
-  if (ec.indices.empty()) return false;
-  if (ec.indices[0] != 'l') return false;
+  if (ec.feature_space.empty()) return false;
+  // Based on how this was written before it looks like the label definition example should contain a single namespace
+  // of l
+  const auto& indices = ec.feature_space.indices();
+  if (indices.size() != 1 || indices[0] != 'l') return false;
   const auto& costs = ec.l.cs.costs;
   for (auto const& cost : costs)
     if ((cost.class_index != 0) || (cost.x <= 0.)) return false;
@@ -216,29 +219,29 @@ void compute_wap_values(std::vector<COST_SENSITIVE::wclass*> costs)
 // This is faster and allows fast undo in unsubtract_example().
 void subtract_feature(example& ec, float feature_value_x, uint64_t weight_index)
 {
-  ec.feature_space[wap_ldf_namespace].push_back(-feature_value_x, weight_index);
+  ec.feature_space.get(wap_ldf_namespace, wap_ldf_namespace).push_back(-feature_value_x, weight_index);
 }
 
 // Iterate over all features of ecsub including quadratic and cubic features and subtract them from ec.
 void subtract_example(vw& all, example* ec, example* ecsub)
 {
-  features& wap_fs = ec->feature_space[wap_ldf_namespace];
+  features& wap_fs = ec->feature_space.get_or_create(wap_ldf_namespace, wap_ldf_namespace);
   wap_fs.sum_feat_sq = 0;
   GD::foreach_feature<example&, uint64_t, subtract_feature>(all, *ecsub, *ec);
-  ec->indices.push_back(wap_ldf_namespace);
   ec->num_features += wap_fs.size();
   ec->reset_total_sum_feat_sq();
 }
 
 void unsubtract_example(example* ec)
 {
-  if (ec->indices.empty())
+  if (ec->feature_space.empty())
   {
     logger::errlog_error("internal error (bug): trying to unsubtract_example, but there are no namespaces!");
     return;
   }
 
-  if (ec->indices.back() != wap_ldf_namespace)
+  auto* wap_fs = ec->feature_space.get_or_null(wap_ldf_namespace, wap_ldf_namespace);
+  if (wap_fs == nullptr)
   {
     logger::errlog_error(
       "internal error (bug): trying to unsubtract_example, but either it wasn't added, or something was added "
@@ -246,11 +249,9 @@ void unsubtract_example(example* ec)
     return;
   }
 
-  features& fs = ec->feature_space[wap_ldf_namespace];
-  ec->num_features -= fs.size();
+  ec->num_features -= wap_fs->size();
   ec->reset_total_sum_feat_sq();
-  fs.clear();
-  ec->indices.pop_back();
+  ec->feature_space.remove(wap_ldf_namespace, wap_ldf_namespace);
 }
 
 void make_single_prediction(ldf& data, single_learner& base, example& ec)
@@ -772,7 +773,7 @@ void inline process_label(ldf& data, example* ec)
   for (auto const& cost : costs)
   {
     const auto lab = static_cast<size_t>(cost.x);
-    LabelDict::set_label_features(data.label_features, lab, ec->feature_space[ec->indices[0]]);
+    LabelDict::set_label_features(data.label_features, lab, (*ec->feature_space.begin()).begin()->feats);
   }
 }
 

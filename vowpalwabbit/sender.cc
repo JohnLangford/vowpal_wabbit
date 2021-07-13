@@ -56,13 +56,14 @@ void open_sockets(sender& s, std::string host)
 void send_features(io_buf* b, example& ec, uint32_t mask)
 {
   // note: subtracting 1 b/c not sending constant
-  output_byte(*b, static_cast<unsigned char>(ec.indices.size() - 1));
+  output_byte(*b, static_cast<uint64_t>(ec.feature_space.size() - 1));
 
-  for (namespace_index ns : ec.indices)
+  for (auto& bucket : ec.feature_space)
   {
-    if (ns == constant_namespace) continue;
-    output_features(*b, ns, ec.feature_space[ns], mask);
+    for (auto it = bucket.begin(); it != bucket.end(); ++it)
+    { output_features(*b, it->index, it->hash, it->feats, mask); }
   }
+
   b->flush();
 }
 

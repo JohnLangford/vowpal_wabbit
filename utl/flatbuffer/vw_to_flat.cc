@@ -353,17 +353,18 @@ void to_flat::convert_txt_to_flat(vw& all)
       }
     }
     std::vector<flatbuffers::Offset<VW::parsers::flatbuffer::Namespace>> namespaces;
-    for (const namespace_index& ns : ae->indices)
+
+    for (auto it = ae->feature_space.begin(); it != ae->feature_space.end(); ++it)
     {
       // Skip over constant namespace as that will be assigned while reading flatbuffer again
-      if (ns == 128) { continue; }
+      if (it.index() == 128) { continue; }
 
       std::vector<flatbuffers::Offset<VW::parsers::flatbuffer::Feature>> fts;
 
       std::stringstream ss;
-      ss << ns;
+      ss << it.index() << it.hash();
 
-      for (features::iterator& f : ae->feature_space[ns]) { ss << f.index() << f.value(); }
+      for (features::iterator& f : *it) { ss << f.index() << f.value(); }
 
       std::string s = ss.str();
       uint64_t refid = uniform_hash(s.c_str(), s.size(), 0);
@@ -375,7 +376,7 @@ void to_flat::convert_txt_to_flat(vw& all)
         // new namespace
         if (all.audit || all.hash_inv)
         {
-          auto& ns_fts = ae->feature_space[ns];
+          auto& ns_fts = *it;
           std::string ns_name;
           for (const auto& f : ns_fts.audit_range())
           {
@@ -383,13 +384,15 @@ void to_flat::convert_txt_to_flat(vw& all)
             fts.push_back(VW::parsers::flatbuffer::CreateFeatureDirect(
                 _builder, f.audit()->second.c_str(), f.value(), f.index()));
           }
-          namespace_offset = VW::parsers::flatbuffer::CreateNamespaceDirect(_builder, ns_name.c_str(), ns, &fts);
+          namespace_offset =
+              VW::parsers::flatbuffer::CreateNamespaceDirect(_builder, ns_name.c_str(), it.index(), &fts, it.hash());
         }
         else
         {
-          for (features::iterator& f : ae->feature_space[ns])
+          for (features::iterator& f : *it)
           { fts.push_back(VW::parsers::flatbuffer::CreateFeatureDirect(_builder, nullptr, f.value(), f.index())); }
-          namespace_offset = VW::parsers::flatbuffer::CreateNamespaceDirect(_builder, nullptr, ns, &fts);
+          namespace_offset =
+              VW::parsers::flatbuffer::CreateNamespaceDirect(_builder, nullptr, it.index(), &fts, it.hash());
         }
         _share_examples[refid] = namespace_offset;
       }

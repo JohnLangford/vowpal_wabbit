@@ -57,11 +57,10 @@ public:
   VW::string_view _line;
   size_t _read_idx;
   float _cur_channel_v;
-  bool _new_index;
   size_t _anon;
   uint64_t _channel_hash;
   VW::string_view _base;
-  unsigned char _index;
+  unsigned char index;
   float _v;
   bool _redefine_some;
   std::array<unsigned char, NUM_NAMESPACES>* _redefine;
@@ -209,7 +208,7 @@ public:
       }
 
       if (_v == 0) return;  // dont add 0 valued features to list of features
-      features& fs = _ae->feature_space[_index];
+      features& fs = _ae->feature_space.get_or_create(index, _channel_hash);
       fs.push_back(_v, word_hash);
 
       if (audit)
@@ -226,11 +225,10 @@ public:
         }
       }
 
-      if (((*_affix_features)[_index] > 0) && (!feature_name.empty()))
+      if (((*_affix_features)[index] > 0) && (!feature_name.empty()))
       {
-        features& affix_fs = _ae->feature_space[affix_namespace];
-        if (affix_fs.size() == 0) _ae->indices.push_back(affix_namespace);
-        uint64_t affix = (*_affix_features)[_index];
+        features& affix_fs = _ae->feature_space.get_or_create(affix_namespace, affix_namespace);
+        uint64_t affix = (*_affix_features)[index];
 
         while (affix > 0)
         {
@@ -251,7 +249,7 @@ public:
           if (audit)
           {
             v_array<char> affix_v;
-            if (_index != ' ') affix_v.push_back(_index);
+            if (index != ' ') affix_v.push_back(index);
             affix_v.push_back(is_prefix ? '+' : '-');
             affix_v.push_back('0' + static_cast<char>(len));
             affix_v.push_back('=');
@@ -262,10 +260,9 @@ public:
           affix >>= 4;
         }
       }
-      if ((*_spelling_features)[_index])
+      if ((*_spelling_features)[index])
       {
-        features& spell_fs = _ae->feature_space[spelling_namespace];
-        if (spell_fs.size() == 0) _ae->indices.push_back(spelling_namespace);
+        features& spell_fs = _ae->feature_space.get_or_create(spelling_namespace, spelling_namespace);
         // v_array<char> spelling;
         _spelling.clear();
         for (char c : feature_name)
@@ -291,9 +288,9 @@ public:
         if (audit)
         {
           v_array<char> spelling_v;
-          if (_index != ' ')
+          if (index != ' ')
           {
-            spelling_v.push_back(_index);
+            spelling_v.push_back(index);
             spelling_v.push_back('_');
           }
           spelling_v.insert(spelling_v.end(), spelling_strview.begin(), spelling_strview.end());
@@ -301,19 +298,18 @@ public:
           spell_fs.space_names.push_back(audit_strings("spelling", spelling_v.begin()));
         }
       }
-      if ((*_namespace_dictionaries)[_index].size() > 0)
+      if ((*_namespace_dictionaries)[index].size() > 0)
       {
         // Heterogeneous lookup not yet implemented in std
         // http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2018/p0919r0.html
         const std::string feature_name_str(feature_name);
-        for (const auto& map : (*_namespace_dictionaries)[_index])
+        for (const auto& map : (*_namespace_dictionaries)[index])
         {
           const auto& feats_it = map->find(feature_name_str);
           if ((feats_it != map->end()) && (feats_it->second->values.size() > 0))
           {
             const auto& feats = feats_it->second;
-            features& dict_fs = _ae->feature_space[dictionary_namespace];
-            if (dict_fs.size() == 0) _ae->indices.push_back(dictionary_namespace);
+            features& dict_fs = _ae->feature_space.get_or_create(dictionary_namespace, dictionary_namespace);
             dict_fs.values.insert(dict_fs.values.end(), feats->values.begin(), feats->values.end());
             dict_fs.indicies.insert(dict_fs.indicies.end(), feats->indicies.begin(), feats->indicies.end());
             dict_fs.sum_feat_sq += feats->sum_feat_sq;
@@ -321,7 +317,7 @@ public:
               for (const auto& id : feats->indicies)
               {
                 std::stringstream ss;
-                ss << _index << '_';
+                ss << index << '_';
                 ss << feature_name;
                 ss << '=' << id;
                 dict_fs.space_names.push_back(audit_strings("dictionary", ss.str()));
@@ -374,9 +370,8 @@ public:
     else
     {
       // NameSpaceInfo --> 'String' NameSpaceInfoValue
-      _index = (unsigned char)(_line[_read_idx]);
-      if (_redefine_some) _index = (*_redefine)[_index];  // redefine _index
-      if (_ae->feature_space[_index].size() == 0) _new_index = true;
+      index = (unsigned char)(_line[_read_idx]);
+      if (_redefine_some) index = (*_redefine)[index];  // redefine index
       VW::string_view name = read_name();
       if (audit) { _base = name; }
       _channel_hash = _p->hasher(name.begin(), name.length(), this->_hash_seed);
@@ -402,15 +397,13 @@ public:
   inline FORCE_INLINE void nameSpace()
   {
     _cur_channel_v = 1.0;
-    _index = 0;
-    _new_index = false;
+    index = 0;
     _anon = 0;
     if (_read_idx >= _line.size() || _line[_read_idx] == ' ' || _line[_read_idx] == '\t' || _line[_read_idx] == '|' ||
         _line[_read_idx] == '\r')
     {
       // NameSpace --> ListFeatures
-      _index = static_cast<unsigned char>(' ');
-      if (_ae->feature_space[_index].size() == 0) _new_index = true;
+      index = static_cast<unsigned char>(' ');
       if (audit)
       {
         // TODO: c++17 allows VW::string_view literals, eg: " "sv
@@ -432,7 +425,6 @@ public:
       parserWarning(
           "malformed example! '|',String,space, or EOL expected after : \"", _line.substr(0, _read_idx), "\"");
     }
-    if (_new_index && _ae->feature_space[_index].size() > 0) _ae->indices.push_back(_index);
   }
 
   inline FORCE_INLINE void listNameSpace()

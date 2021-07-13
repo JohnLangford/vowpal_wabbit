@@ -213,7 +213,7 @@
     <ClInclude Include="multiclass.h" />
     <ClInclude Include="multilabel_oaa.h" />
     <ClInclude Include="multilabel.h" />
-    <ClInclude Include="namespaced_features.h" />
+    <ClInclude Include="namespaced_feature_store.h" />
     <ClInclude Include="mwt.h" />
     <ClInclude Include="named_labels.h" />
     <ClInclude Include="network.h" />
@@ -372,7 +372,7 @@
     <ClCompile Include="multiclass.cc" />
     <ClCompile Include="multilabel_oaa.cc" />
     <ClCompile Include="multilabel.cc" />
-    <ClCompile Include="namespaced_features.cc" />
+    <ClCompile Include="namespaced_feature_store.cc" />
     <ClCompile Include="mwt.cc" />
     <ClCompile Include="named_labels.cc" />
     <ClCompile Include="network.cc" />

@@ -136,7 +136,7 @@ extern "C"
    * Signature: (C[I[D)V
    */
   JNIEXPORT void JNICALL Java_org_vowpalwabbit_spark_VowpalWabbitExample_addToNamespaceSparse(
-      JNIEnv *, jobject, jchar, jintArray, jdoubleArray);
+      JNIEnv*, jobject, jchar, jint, jintArray, jdoubleArray);
 
   /*
    * Class:     org_vowpalwabbit_spark_VowpalWabbitExample

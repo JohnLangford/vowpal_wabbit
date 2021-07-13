@@ -83,14 +83,16 @@ int VW::read_example_from_cache(
   }
 
   // read indices
-  unsigned char num_indices = input.read_value<unsigned char>("num_indices");
+  auto num_indices = input.read_value<uint64_t>("num_indices");
 
   char* c;
   for (; num_indices > 0; num_indices--)
   {
     size_t temp;
     unsigned char index = 0;
-    if ((temp = input.buf_read(c, sizeof(index) + sizeof(size_t))) < sizeof(index) + sizeof(size_t))
+    uint64_t ns_hash = 0;
+    if ((temp = input.buf_read(c, sizeof(index) + sizeof(ns_hash) + sizeof(size_t))) <
+        sizeof(index) + sizeof(ns_hash) + sizeof(size_t))
     {
       VW::io::logger::errlog_error("truncated example! {} {} ", temp, char_size + sizeof(size_t));
       return 0;
@@ -98,9 +100,10 @@ int VW::read_example_from_cache(
 
     index = *reinterpret_cast<unsigned char*>(c);
     c += sizeof(index);
+    ns_hash = *reinterpret_cast<uint64_t*>(c);
+    c += sizeof(ns_hash);
 
-    ae->indices.push_back(static_cast<size_t>(index));
-    features& ours = ae->feature_space[index];
+    features& ours = ae->feature_space.get_or_create(index, ns_hash);
     size_t storage = *reinterpret_cast<size_t*>(c);
     c += sizeof(size_t);
     input.set(c);
@@ -161,16 +164,20 @@ void output_byte(io_buf& cache, unsigned char s)
   cache.set(c);
 }
 
-void output_features(io_buf& cache, unsigned char index, features& fs, uint64_t mask)
+void output_features(io_buf& cache, unsigned char index, uint64_t ns_hash, const features& fs, uint64_t mask)
 {
   char* c;
   size_t storage = fs.size() * int_size;
   for (feature_value f : fs.values)
-    if (f != 1. && f != -1.) storage += sizeof(feature_value);
+  {
+    if (f != 1. && f != -1.) { storage += sizeof(feature_value); }
+  }
 
-  cache.buf_write(c, sizeof(index) + storage + sizeof(size_t));
+  cache.buf_write(c, sizeof(index) + sizeof(ns_hash) + storage + sizeof(size_t));
   *reinterpret_cast<unsigned char*>(c) = index;
   c += sizeof(index);
+  *reinterpret_cast<uint64_t*>(c) = ns_hash;
+  c += sizeof(ns_hash);
 
   char* storage_size_loc = c;
   c += sizeof(size_t);
@@ -210,13 +217,16 @@ void cache_tag(io_buf& cache, const v_array<char>& tag)
   cache.set(c);
 }
 
-void cache_features(io_buf& cache, example* ae, uint64_t mask)
+void cache_features(io_buf& cache, const example* ae, uint64_t mask)
 {
   cache_tag(cache, ae->tag);
-
   cache.write_value<unsigned char>(ae->is_newline ? newline_example : non_newline_example);
-  cache.write_value<unsigned char>(static_cast<unsigned char>(ae->indices.size()));
-  for (namespace_index ns : ae->indices) output_features(cache, ns, ae->feature_space[ns], mask);
+  cache.write_value<uint64_t>(static_cast<uint64_t>(ae->feature_space.size()));
+  for (auto& bucket : *const_cast<example*>(ae))
+  {
+    for (auto it = bucket.begin(); it != bucket.end(); ++it)
+    { output_features(cache, it->index, it->hash, it->feats, mask); }
+  }
 }
 
 uint32_t VW::convert(size_t number)

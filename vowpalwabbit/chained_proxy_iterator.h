@@ -52,39 +52,53 @@ public:
   {
     ++_current;
     // TODO: don't rely on audit_end
-    if (_current == (*_outer_current).audit_end() && (_outer_current != _outer_end))
+    if (_current == (*_outer_current).feats.audit_end() && (_outer_current != _outer_end))
     {
       ++_outer_current;
-      _current = (*_outer_current).audit_begin();
+      _current = (*_outer_current).feats.audit_begin();
     }
     return *this;
   }
 
-  // TODO jump full feature groups.
+  // UB if diff < 0
   chained_proxy_iterator& operator+=(difference_type diff)
   {
-    for (size_t i = 0; i < diff; i++) { operator++(); }
-    return *this;
+    assert(diff >= 0);
+    while (true)
+    {
+      auto current_group_distance_to_end = std::distance(_current, (*_outer_current).feats.audit_end());
+      if (diff > current_group_distance_to_end)
+      {
+        diff -= current_group_distance_to_end;
+        ++_outer_current;
+        _current = (*_outer_current).feats.audit_begin();
+      }
+      else
+      {
+        _current += diff;
+
+        if ((diff == current_group_distance_to_end) && (_outer_current != _outer_end))
+        {
+          ++_outer_current;
+          _current = (*_outer_current).feats.audit_begin();
+        }
+        return *this;
+      }
+    }
   }
 
+  // end - begin
   friend difference_type operator-(const chained_proxy_iterator& lhs, chained_proxy_iterator rhs)
   {
-    assert(lhs._outer_current >= rhs._outer_current);
+    // assert(lhs._outer_current >= rhs._outer_current);
     size_t accumulator = 0;
-    while (lhs != rhs)
+    while (lhs._outer_current != rhs._outer_current)
     {
-      accumulator++;
-      ++rhs;
+      accumulator += std::distance(rhs._current, (*(rhs._outer_current)).feats.audit_end());
+      ++rhs._outer_current;
+      rhs._current = (*rhs._outer_current).feats.audit_begin();
     }
-    // TODO: bring back the more efficient skip implementation.
-    // Note this has a bug if any of the inner feature groups is empty it produces the incorrect count in the final
-    // accumulate step. while (lhs._outer_current != rhs._outer_current)
-    // {
-    //   accumulator += std::distance((*(rhs._outer_current)).audit_begin(), (*(rhs._outer_current)).audit_end());
-    //   ++rhs._outer_current;
-    //   rhs._current = (*rhs._outer_current).audit_begin();
-    // }
-    // accumulator += std::distance(rhs._current, lhs._current);
+    accumulator += std::distance(rhs._current, lhs._current);
     return accumulator;
   }
 

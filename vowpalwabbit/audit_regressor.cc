@@ -76,20 +76,22 @@ void audit_regressor_lda(audit_regressor_data& rd, VW::LEARNER::single_learner& 
 
   std::ostringstream tempstream;
   parameters& weights = rd.all->weights;
-  for (unsigned char* i = ec.indices.begin(); i != ec.indices.end(); i++)
+  for (auto& bucket : ec)
   {
-    features& fs = ec.feature_space[*i];
-    for (size_t j = 0; j < fs.size(); ++j)
+    for (const auto& feat_group : bucket)
     {
-      tempstream << '\t' << fs.space_names[j].first << '^' << fs.space_names[j].second << ':'
-                 << ((fs.indicies[j] >> weights.stride_shift()) & all.parse_mask);
-      for (size_t k = 0; k < all.lda; k++)
+      for (size_t j = 0; j < feat_group.feats.size(); ++j)
       {
-        weight& w = weights[(fs.indicies[j] + k)];
-        tempstream << ':' << w;
-        w = 0.;
+        tempstream << '\t' << feat_group.feats.space_names[j].first << '^' << feat_group.feats.space_names[j].second
+                   << ':' << ((feat_group.feats.indicies[j] >> weights.stride_shift()) & all.parse_mask);
+        for (size_t k = 0; k < all.lda; k++)
+        {
+          weight& w = weights[(feat_group.feats.indicies[j] + k)];
+          tempstream << ':' << w;
+          w = 0.;
+        }
+        tempstream << std::endl;
       }
-      tempstream << std::endl;
     }
   }
 
@@ -112,19 +114,30 @@ void audit_regressor(audit_regressor_data& rd, VW::LEARNER::single_learner& base
 
     while (rd.cur_class < rd.total_class_cnt)
     {
-      for (unsigned char* i = ec.indices.begin(); i != ec.indices.end(); ++i)
+      for (const auto& bucket : ec)
       {
-        features& fs = ec.feature_space[static_cast<size_t>(*i)];
-        if (fs.space_names.size() > 0)
-          for (size_t j = 0; j < fs.size(); ++j)
+        for (const auto& feat_group : bucket)
+        {
+          if (feat_group.feats.space_names.size() > 0)
           {
-            audit_regressor_interaction(rd, &fs.space_names[j]);
-            audit_regressor_feature(rd, fs.values[j], static_cast<uint32_t>(fs.indicies[j]) + ec.ft_offset);
-            audit_regressor_interaction(rd, nullptr);
+            for (size_t j = 0; j < feat_group.feats.size(); ++j)
+            {
+              audit_regressor_interaction(rd, &feat_group.feats.space_names[j]);
+              audit_regressor_feature(
+                  rd, feat_group.feats.values[j], static_cast<uint32_t>(feat_group.feats.indicies[j]) + ec.ft_offset);
+              audit_regressor_interaction(rd, nullptr);
+            }
           }
-        else
-          for (size_t j = 0; j < fs.size(); ++j)
-            audit_regressor_feature(rd, fs.values[j], static_cast<uint32_t>(fs.indicies[j]) + ec.ft_offset);
+
+          else
+          {
+            for (size_t j = 0; j < feat_group.feats.size(); ++j)
+            {
+              audit_regressor_feature(
+                  rd, feat_group.feats.values[j], static_cast<uint32_t>(feat_group.feats.indicies[j]) + ec.ft_offset);
+            }
+          }
+        }
       }
 
       size_t num_interacted_features = 0;

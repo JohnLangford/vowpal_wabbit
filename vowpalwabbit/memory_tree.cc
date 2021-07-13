@@ -90,8 +90,6 @@ void diag_kronecker_prod_fs_test(
   }
 }
 
-int cmpfunc(const void* a, const void* b) { return *(char*)a - *(char*)b; }
-
 void diag_kronecker_product_test(example& ec1, example& ec2, example& ec, bool oas = false)
 {
   // copy_example_data(&ec, &ec1, oas); //no_feat false, oas: true
@@ -99,26 +97,20 @@ void diag_kronecker_product_test(example& ec1, example& ec2, example& ec, bool o
 
   ec.total_sum_feat_sq = 0.0;  // sort namespaces.  pass indices array into sort...template (leave this to the end)
 
-  qsort(ec1.indices.begin(), ec1.indices.size(), sizeof(namespace_index), cmpfunc);
-  qsort(ec2.indices.begin(), ec2.indices.size(), sizeof(namespace_index), cmpfunc);
-
-  size_t idx1 = 0;
-  size_t idx2 = 0;
-  while (idx1 < ec1.indices.size() && idx2 < ec2.indices.size())
-  // for (size_t idx1 = 0, idx2 = 0; idx1 < ec1.indices.size() && idx2 < ec2.indices.size(); idx1++)
+  for (auto& bucket : ec1.feature_space)
   {
-    namespace_index c1 = ec1.indices[idx1];
-    namespace_index c2 = ec2.indices[idx2];
-    if (c1 < c2)
-      idx1++;
-    else if (c1 > c2)
-      idx2++;
-    else
+    for (auto it = bucket.begin(); it != bucket.end(); ++it)
     {
-      diag_kronecker_prod_fs_test(ec1.feature_space[c1], ec2.feature_space[c2], ec.feature_space[c1],
-          ec.total_sum_feat_sq, ec1.get_total_sum_feat_sq(), ec2.get_total_sum_feat_sq());
-      idx1++;
-      idx2++;
+      auto* ec2_equiv_feat_group = ec2.feature_space.get_or_null(it->index, it->hash);
+      auto* dest_feat_group = ec.feature_space.get_or_null(it->index, it->hash);
+
+      if (ec2_equiv_feat_group != nullptr)
+      {
+        // Since this was copied into just above this should not be nullptr.
+        assert(dest_feat_group != nullptr);
+        diag_kronecker_prod_fs_test(it->feats, *ec2_equiv_feat_group, *dest_feat_group, ec.total_sum_feat_sq,
+            ec1.get_total_sum_feat_sq(), ec2.get_total_sum_feat_sq());
+      }
     }
   }
 }
@@ -1094,28 +1086,46 @@ void save_load_example(example* ec, io_buf& model_file, bool& read, bool& text, 
   for (uint32_t i = 0; i < tag_number; i++) writeit(ec->tag[i], "tag");
 
   // deal with tag:
-  writeitvar(ec->indices.size(), "namespaces", namespace_size);
+  writeitvar(ec->feature_space.size(), "namespaces", namespace_size);
   if (read)
   {
-    ec->indices.clear();
-    for (uint32_t i = 0; i < namespace_size; i++) { ec->indices.push_back('\0'); }
+    for (uint32_t i = 0; i < namespace_size; i++)
+    {
+      namespace_index index = 0;
+      model_file.bin_read_fixed((char*)&index, sizeof(index), "");
+      ec->feature_space.get_or_create(index, index);
+    }
   }
-  for (uint32_t i = 0; i < namespace_size; i++) writeit(ec->indices[i], "namespace_index");
+  else
+  {
+    for (auto& bucket : ec->feature_space)
+    {
+      for (auto it = bucket.begin(); it != bucket.end(); ++it)
+      {
+        auto value = it->index;
+        msg << "namespace_index = " << value << " ";
+        bin_text_write_fixed(model_file, (char*)&value, sizeof(value), msg, text);
+      }
+    }
+  }
 
   // deal with features
-  for (namespace_index nc : ec->indices)
+  for (auto& bucket : ec->feature_space)
   {
-    features* fs = &ec->feature_space[nc];
-    writeitvar(fs->size(), "features_", feat_size);
-    if (read)
+    for (auto it = bucket.begin(); it != bucket.end(); ++it)
     {
-      fs->clear();
-      fs->values.clear();
-      fs->indicies.clear();
-      for (uint32_t f_i = 0; f_i < feat_size; f_i++) { fs->push_back(0, 0); }
+      features& fs = it->feats;
+      writeitvar(fs.size(), "features_", feat_size);
+      if (read)
+      {
+        fs.clear();
+        fs.values.clear();
+        fs.indicies.clear();
+        for (uint32_t f_i = 0; f_i < feat_size; f_i++) { fs.push_back(0, 0); }
+      }
+      for (uint32_t f_i = 0; f_i < feat_size; f_i++) writeit(fs.values[f_i], "value");
+      for (uint32_t f_i = 0; f_i < feat_size; f_i++) writeit(fs.indicies[f_i], "index");
     }
-    for (uint32_t f_i = 0; f_i < feat_size; f_i++) writeit(fs->values[f_i], "value");
-    for (uint32_t f_i = 0; f_i < feat_size; f_i++) writeit(fs->indicies[f_i], "index");
   }
 }
 

@@ -185,11 +185,10 @@ uint64_t ceil_log_2(uint64_t v);
 class namespace_copy_guard
 {
   example_predict& _ex;
-  unsigned char _ns;
-  bool _remove_ns;
+  uint64_t _ns;
 
 public:
-  namespace_copy_guard(example_predict& ex, unsigned char ns);
+  namespace_copy_guard(example_predict& ex, uint64_t ns, unsigned const char index);
   ~namespace_copy_guard();
 
   void feature_push_back(feature_value v, feature_index idx);
@@ -416,7 +415,8 @@ public:
     if (!_no_constant)
     {
       // add constant feature
-      ns_copy_guard = std::unique_ptr<namespace_copy_guard>(new namespace_copy_guard(ex, constant_namespace));
+      ns_copy_guard =
+          std::unique_ptr<namespace_copy_guard>(new namespace_copy_guard(ex, constant_namespace, constant_namespace));
       ns_copy_guard->feature_push_back(1.f, (constant << _stride_shift) + ex.ft_offset);
     }
 
@@ -424,7 +424,8 @@ public:
     {
       // permutations is not supported by slim so we can just use combinations!
       _generate_interactions.update_interactions_if_new_namespace_seen<
-          INTERACTIONS::generate_namespace_combinations_with_repetition, false>(_interactions, ex.indices);
+          INTERACTIONS::generate_namespace_combinations_with_repetition, false>(
+          _interactions, ex.feature_space.get_indices());
       score = GD::inline_predict<W>(*_weights, false, _ignore_linear, _generate_interactions.generated_interactions,
           /* permutations */ false, ex);
     }
@@ -450,13 +451,15 @@ public:
       std::vector<std::unique_ptr<namespace_copy_guard>> ns_copy_guards;
 
       // shared feature copying
-      for (auto ns : shared.indices)
+      for (auto it = shared.feature_space.begin(); it != shared.feature_space.end(); ++it)
       {
         // insert namespace
-        auto ns_copy_guard = std::unique_ptr<namespace_copy_guard>(new namespace_copy_guard(*action, ns));
+        auto ns_copy_guard =
+            std::unique_ptr<namespace_copy_guard>(new namespace_copy_guard(*action, it->hash, it->index));
 
         // copy features
-        for (auto fs : shared.feature_space[ns]) ns_copy_guard->feature_push_back(fs.value(), fs.index());
+        for (auto fs : *shared.feature_space.get_or_null(it->hash))
+          ns_copy_guard->feature_push_back(fs.value(), fs->index);
 
         // keep guard around
         ns_copy_guards.push_back(std::move(ns_copy_guard));

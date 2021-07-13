@@ -86,9 +86,13 @@ void initialize(Search::search &sch, size_t & /*num_actions*/, options_i &option
       make_option("old_style_labels", data->old_style_labels).keep().help("Use old hack of label information"));
   options.add_and_parse(new_options);
 
-  data->ex.indices.push_back(val_namespace);
-  for (size_t i = 1; i < 14; i++) data->ex.indices.push_back(static_cast<unsigned char>(i) + 'A');
-  data->ex.indices.push_back(constant_namespace);
+  data->ex.feature_space.get_or_create(val_namespace, val_namespace);
+  for (size_t i = 1; i < 14; i++)
+  {
+    auto current_index = static_cast<unsigned char>(i) + 'A';
+    data->ex.feature_space.get_or_create(current_index, current_index);
+  }
+  data->ex.feature_space.get_or_create(constant_namespace, val_namespace);
   data->ex.interactions = &sch.get_vw_pointer_unsafe().interactions;
 
   if (data->one_learner)
@@ -124,24 +128,30 @@ void finish(Search::search &sch)
 void inline add_feature(
     example &ex, uint64_t idx, unsigned char ns, uint64_t mask, uint64_t multiplier, bool /* audit */ = false)
 {
-  ex.feature_space[static_cast<int>(ns)].push_back(1.0f, (idx * multiplier) & mask);
+  ex.feature_space.get_or_create(ns, ns).push_back(1.0f, (idx * multiplier) & mask);
 }
 
 void add_all_features(example &ex, example &src, unsigned char tgt_ns, uint64_t mask, uint64_t multiplier,
     uint64_t offset, bool /* audit */ = false)
 {
-  features &tgt_fs = ex.feature_space[tgt_ns];
-  for (namespace_index ns : src.indices)
-    if (ns != constant_namespace)  // ignore constant_namespace
-      for (feature_index i : src.feature_space[ns].indicies)
-        tgt_fs.push_back(1.0f, ((i / multiplier + offset) * multiplier) & mask);
+  for (auto& bucket : src.feature_space)
+  {
+    for (auto it = bucket.begin(); it != bucket.end(); ++it)
+    {
+      if (it->index == constant_namespace) { continue; }
+      features& tgt_fs = ex.feature_space.get_or_create(tgt_ns, tgt_ns);
+
+      for (feature_index i : it->feats.indicies)
+      { tgt_fs.push_back(1.0f, ((i / multiplier + offset) * multiplier) & mask); }
+    }
+  }
 }
 
 void inline reset_ex(example& ex)
 {
   ex.num_features = 0;
   ex.reset_total_sum_feat_sq();
-  for (features& fs : ex) { fs.clear(); }
+  ex.feature_space.clear();
 }
 
 // arc-hybrid System.
@@ -309,10 +319,13 @@ void extract_features(Search::search &sch, uint32_t idx, multi_ex &ec)
     add_feature(ex, temp[j] + additional_offset, val_namespace, mask, multiplier);
   }
   size_t count = 0;
-  for (features& fs : data->ex)
+  for (auto& bucket : data->ex)
   {
-    fs.sum_feat_sq = static_cast<float>(fs.size());
-    count += fs.size();
+    for (auto& fs : bucket)
+    {
+      fs.feats.sum_feat_sq = static_cast<float>(fs.feats.size());
+      count += fs.feats.size();
+    }
   }
 
   data->ex.num_features = count;

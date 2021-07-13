@@ -1207,8 +1207,12 @@ public:
 
     auto* stored_ex = (*ctx.dedup_examples)[i];
 
-    new_ex->indices = stored_ex->indices;
-    for (auto& ns : new_ex->indices) { new_ex->feature_space[ns] = stored_ex->feature_space[ns]; }
+    for (auto& bucket : *stored_ex)
+    {
+      for (auto it = bucket.begin(); it != bucket.end(); ++it)
+      { new_ex->feature_space.get_or_create(it->index, it->hash).concat(it->feats); }
+    }
+
     new_ex->ft_offset = stored_ex->ft_offset;
     return return_state;
   }
@@ -1524,9 +1528,8 @@ public:
     Namespace<audit> n;
     n.feature_group = ns[0];
     n.namespace_hash = VW::hash_space_cstr(*all, ns);
-    n.ftrs = ex->feature_space.data() + ns[0];
+    n.ftrs = &ex->feature_space.get_or_create(ns[0], n.namespace_hash);
     n.feature_count = 0;
-
     n.name = ns;
 
     namespace_path.push_back(n);
@@ -1536,13 +1539,6 @@ public:
   BaseState<audit>* PopNamespace()
   {
     auto& ns = CurrentNamespace();
-    if (ns.feature_count > 0)
-    {
-      auto feature_group = ns.feature_group;
-      // Do not insert feature_group if it already exists.
-      if (std::find(ex->indices.begin(), ex->indices.end(), feature_group) == ex->indices.end())
-      { ex->indices.push_back(feature_group); }
-    }
 
     auto return_state = return_path.back();
     namespace_path.pop_back();
@@ -1646,6 +1642,7 @@ void read_line_json_s(vw& all, v_array<example*>& examples, char* line, size_t l
 
   ParseResult result =
       parser.reader.template Parse<kParseInsituFlag, InsituStringStream, VWReaderHandler<audit>>(ss, handler);
+  for (auto* ex : examples) { remove_empty_namespaces(ex->feature_space); }
   if (!result.IsError()) return;
 
   BaseState<audit>* current_state = handler.current_state();
@@ -1718,6 +1715,8 @@ bool read_line_decision_service_json(vw& all, v_array<example*>& examples, char*
   ParseResult result =
       parser.reader.template Parse<kParseInsituFlag, InsituStringStream, VWReaderHandler<audit>>(ss, handler);
 
+  for (auto* ex : examples) { remove_empty_namespaces(ex->feature_space); }
+
   if (result.IsError())
   {
     BaseState<audit>* current_state = handler.current_state();
@@ -1753,6 +1752,8 @@ bool parse_line_json(vw* all, char* line, size_t num_chars, v_array<example*>& e
     DecisionServiceInteraction interaction;
     bool result = VW::template read_line_decision_service_json<audit>(*all, examples, line, num_chars, false,
         reinterpret_cast<VW::example_factory_t>(&VW::get_unused_example), all, &interaction);
+
+    for (auto* ex : examples) { remove_empty_namespaces(ex->feature_space); }
 
     if (!result)
     {

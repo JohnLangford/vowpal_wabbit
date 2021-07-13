@@ -28,9 +28,12 @@ void unique_features(features& fs, int max)
 
 void unique_sort_features(uint64_t parse_mask, example* ae)
 {
-  for (features& fs : *ae)
+  for (auto& bucket : *ae)
   {
-    if (fs.sort(parse_mask)) { unique_features(fs); }
+    for (auto& fs : bucket)
+    {
+      if (fs.feats.sort(parse_mask)) { unique_features(fs.feats); }
+    }
   }
 
   ae->sorted = true;

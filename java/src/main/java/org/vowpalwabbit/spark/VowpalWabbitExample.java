@@ -33,19 +33,34 @@ public class VowpalWabbitExample implements Closeable {
      * {@code baseIndex} is expected to be pre-hashed (e.g. hash(namespace)).
      *
      * @param ns        the first character of the namespace.
-     * @param baseIndex the base index for each of the {@code values}.
+     * @param baseIndex the base index for each of the {@code values}. This is also the namespace hash (e.g. hash(namespace))
      * @param values    the feature values.
      */
     public native void addToNamespaceDense(char ns, int baseIndex, double[] values);
 
     /**
-     * Adds the sparse features values to the supplied naemspace.
+     * Adds the sparse features values to the supplied namespace.
      *
      * @param ns      the first character of the namespace.
      * @param indices the indices of each corresponding feature value.
      * @param values  the feature values.
+     * @deprecated use the version with baseIndex instead
      */
-    public native void addToNamespaceSparse(char ns, int[] indices, double[] values);
+    @Deprecated
+    public void addToNamespaceSparse(char ns, int[] indices, double[] values)
+    {
+        addToNamespaceSparse(ns, ns, indices, values);
+    }
+
+        /**
+     * Adds the sparse features values to the supplied namespace.
+     *
+     * @param ns      the first character of the namespace.
+     * @param baseIndex the namespace hash (e.g. hash(namespace))
+     * @param indices the indices of each corresponding feature value.
+     * @param values  the feature values.
+     */
+    public native void addToNamespaceSparse(char ns, int baseIndex, int[] indices, double[] values);
 
     /**
      * Set the simple label.

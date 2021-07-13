@@ -23,19 +23,18 @@ namespace BASELINE
 {
 void set_baseline_enabled(example* ec)
 {
-  if (!baseline_enabled(ec)) { ec->indices.push_back(baseline_enabled_message_namespace); }
+  ec->feature_space.get_or_create(baseline_enabled_message_namespace, baseline_enabled_message_namespace);
 }
 
 void reset_baseline_disabled(example* ec)
 {
-  auto it = std::find(ec->indices.begin(), ec->indices.end(), baseline_enabled_message_namespace);
-  if (it != ec->indices.end()) { ec->indices.erase(it); }
+  ec->feature_space.remove(baseline_enabled_message_namespace, baseline_enabled_message_namespace);
 }
 
 bool baseline_enabled(example* ec)
 {
-  auto it = std::find(ec->indices.begin(), ec->indices.end(), baseline_enabled_message_namespace);
-  return it != ec->indices.end();
+  auto* fs = ec->feature_space.get_or_null(baseline_enabled_message_namespace, baseline_enabled_message_namespace);
+  return fs != nullptr;
 }
 }  // namespace BASELINE
 
@@ -59,10 +58,9 @@ void init_global(baseline& data)
 {
   if (!data.global_only) return;
   // use a separate global constant
-  data.ec->indices.push_back(constant_namespace);
+  auto& constant_ns = data.ec->feature_space.get_or_create(constant_namespace, constant_namespace);
   // different index from constant to avoid conflicts
-  data.ec->feature_space[constant_namespace].push_back(
-      1, ((constant - 17) * data.all->wpp) << data.all->weights.stride_shift());
+  constant_ns.push_back(1, ((constant - 17) * data.all->wpp) << data.all->weights.stride_shift());
   data.ec->reset_total_sum_feat_sq();
   data.ec->num_features++;
 }

@@ -12,7 +12,10 @@
 float calculate_total_sum_features_squared(bool permutations, example& ec)
 {
   float sum_features_squared = 0.f;
-  for (const features& fs : ec) { sum_features_squared += fs.sum_feat_sq; }
+  for (auto& bucket : ec)
+  {
+    for (const auto& fs : bucket) { sum_features_squared += fs.feats.sum_feat_sq; }
+  }
 
   size_t ignored_interacted_feature_count = 0;
   float calculated_sum_features_squared = 0.f;
@@ -101,8 +104,7 @@ void copy_example_data(example* dst, const example* src)
   copy_example_metadata(dst, src);
 
   // copy feature data
-  dst->indices = src->indices;
-  for (namespace_index c : src->indices) dst->feature_space[c] = src->feature_space[c];
+  dst->feature_space = src->feature_space;
   dst->num_features = src->num_features;
   dst->total_sum_feat_sq = src->total_sum_feat_sq;
   dst->total_sum_feat_sq_calculated = src->total_sum_feat_sq_calculated;
@@ -135,16 +137,24 @@ void copy_example_data_with_label(example* dst, const example* src)
 
 void move_feature_namespace(example* dst, example* src, namespace_index c)
 {
-  if (std::find(src->indices.begin(), src->indices.end(), c) == src->indices.end()) return;  // index not present in src
-  if (std::find(dst->indices.begin(), dst->indices.end(), c) == dst->indices.end()) dst->indices.push_back(c);
+  auto& group_list = src->feature_space.get_list(c);
 
-  auto& fdst = dst->feature_space[c];
-  auto& fsrc = src->feature_space[c];
+  // Check if the range is empty.
+  if (group_list.empty()) { return; }
 
-  src->num_features -= fsrc.size();
+  std::vector<std::pair<namespace_index, uint64_t>> hashes_to_remove;
+  hashes_to_remove.reserve(group_list.size());
+
+  for (auto& ns_fs : group_list)
+  {
+    src->num_features -= ns_fs.feats.size();
+    dst->num_features += ns_fs.feats.size();
+    dst->feature_space.get_or_create(ns_fs.index, ns_fs.hash) = std::move(ns_fs.feats);
+    hashes_to_remove.emplace_back(ns_fs.index, ns_fs.hash);
+  }
+  for (auto idx_hash : hashes_to_remove) { src->feature_space.remove(idx_hash.first, idx_hash.second); }
+
   src->reset_total_sum_feat_sq();
-  std::swap(fdst, fsrc);
-  dst->num_features += fdst.size();
   dst->reset_total_sum_feat_sq();
 }
 

@@ -271,15 +271,22 @@ void print_lda_features(vw& all, example& ec)
   parameters& weights = all.weights;
   uint32_t stride_shift = weights.stride_shift();
   size_t count = 0;
-  for (features& fs : ec) count += fs.size();
-  // TODO: Where should audit stuff output to?
-  for (features& fs : ec)
+  for (auto& bucket : ec)
   {
-    for (const auto& f : fs.audit_range())
+    for (auto& fs : bucket) { count += fs.feats.size(); }
+  }
+
+  // TODO: Where should audit stuff output to?
+  for (auto& bucket : ec)
+  {
+    for (auto& fs : bucket)
     {
-      std::cout << '\t' << f.audit()->first << '^' << f.audit()->second << ':'
-                << ((f.index() >> stride_shift) & all.parse_mask) << ':' << f.value();
-      for (size_t k = 0; k < all.lda; k++) std::cout << ':' << (&weights[f.index()])[k];
+      for (const auto& f : fs.feats.audit_range())
+      {
+        std::cout << '\t' << f.audit()->first << '^' << f.audit()->second << ':'
+                  << ((f.index() >> stride_shift) & all.parse_mask) << ':' << f.value();
+        for (size_t k = 0; k < all.lda; k++) std::cout << ':' << (&weights[f.index()])[k];
+      }
     }
   }
   std::cout << " total of " << count << " features." << std::endl;
@@ -293,19 +300,22 @@ void print_features(vw& all, example& ec)
   {
     audit_results dat(all, ec.ft_offset);
 
-    for (features& fs : ec)
+    for (auto& bucket : ec)
     {
-      if (fs.space_names.size() > 0)
-        for (const auto& f : fs.audit_range())
-        {
-          audit_interaction(dat, f.audit());
-          audit_feature(dat, f.value(), f.index() + ec.ft_offset);
-          audit_interaction(dat, nullptr);
-        }
-      else
+      for (auto& fs : bucket)
       {
-        for (const auto& f : fs) { audit_feature(dat, f.value(), f.index() + ec.ft_offset); }
-      }
+        if (fs.feats.space_names.size() > 0)
+          for (const auto& f : fs.feats.audit_range())
+          {
+            audit_interaction(dat, f.audit());
+            audit_feature(dat, f.value(), f.index() + ec.ft_offset);
+            audit_interaction(dat, nullptr);
+          }
+        else
+        {
+          for (const auto& f : fs.feats) { audit_feature(dat, f.value(), f.index() + ec.ft_offset); }
+        }
+        }
     }
     size_t num_interacted_features = 0;
     INTERACTIONS::generate_interactions<audit_results, const uint64_t, audit_feature, true, audit_interaction>(

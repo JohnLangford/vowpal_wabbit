@@ -15,7 +15,7 @@ struct LRQstate
 {
   vw* all;  // feature creation, audit, hash_inv
   bool lrindices[256];
-  size_t orig_size[256];
+  std::unordered_map<uint64_t, size_t> orig_size;
   std::set<std::string> lrpairs;
   bool dropout;
   uint64_t seed;
@@ -55,10 +55,13 @@ void predict_or_learn(LRQstate& lrq, single_learner& base, example& ec)
 
   // Remember original features
 
-  memset(lrq.orig_size, 0, sizeof(lrq.orig_size));
-  for (namespace_index i : ec.indices)
+  lrq.orig_size.clear();
+  for (auto& bucket : ec)
   {
-    if (lrq.lrindices[i]) lrq.orig_size[i] = ec.feature_space[i].size();
+    for (auto& fs : bucket)
+    {
+      if (lrq.lrindices[fs.index]) { lrq.orig_size[fs.hash] = fs.feats.size(); }
+    }
   }
 
   size_t which = ec.example_counter;
@@ -84,50 +87,55 @@ void predict_or_learn(LRQstate& lrq, single_learner& base, example& ec)
       unsigned char right = i[(which + 1) % 2];
       unsigned int k = atoi(i.c_str() + 2);
 
-      features& left_fs = ec.feature_space[left];
-      for (unsigned int lfn = 0; lfn < lrq.orig_size[left]; ++lfn)
+      for (const auto& left_ns_fs : ec.feature_space.get_list(left))
       {
-        float lfx = left_fs.values[lfn];
-        uint64_t lindex = left_fs.indicies[lfn] + ec.ft_offset;
-        for (unsigned int n = 1; n <= k; ++n)
+        const auto& left_fs = left_ns_fs.feats;
+        for (unsigned int lfn = 0; lfn < lrq.orig_size[left_ns_fs.hash]; ++lfn)
         {
-          if (!do_dropout || cheesyrbit(lrq.seed))
+          float lfx = left_fs.values[lfn];
+          uint64_t lindex = left_fs.indicies[lfn] + ec.ft_offset;
+          for (unsigned int n = 1; n <= k; ++n)
           {
-            uint64_t lwindex = (lindex + (static_cast<uint64_t>(n) << stride_shift));
-            weight* lw = &lrq.all->weights[lwindex];
-
-            // perturb away from saddle point at (0, 0)
-            if (is_learn)
+            if (!do_dropout || cheesyrbit(lrq.seed))
             {
-              if (!example_is_test(ec) && *lw == 0)
+              uint64_t lwindex = (lindex + (static_cast<uint64_t>(n) << stride_shift));
+              weight* lw = &lrq.all->weights[lwindex];
+
+              // perturb away from saddle point at (0, 0)
+              if (is_learn)
               {
-                *lw = cheesyrand(lwindex);  // not sure if lw needs a weight mask?
+                if (!example_is_test(ec) && *lw == 0)
+                {
+                  *lw = cheesyrand(lwindex);  // not sure if lw needs a weight mask?
+                }
               }
-            }
 
-            features& right_fs = ec.feature_space[right];
-            for (unsigned int rfn = 0; rfn < lrq.orig_size[right]; ++rfn)
-            {
-              // NB: ec.ft_offset added by base learner
-              float rfx = right_fs.values[rfn];
-              uint64_t rindex = right_fs.indicies[rfn];
-              uint64_t rwindex = (rindex + (static_cast<uint64_t>(n) << stride_shift));
-
-              right_fs.push_back(scale * *lw * lfx * rfx, rwindex);
-
-              if (all.audit || all.hash_inv)
+              for (auto& right_ns_fs : ec.feature_space.get_list(right))
               {
-                std::stringstream new_feature_buffer;
-                new_feature_buffer << right << '^' << right_fs.space_names[rfn].second << '^' << n;
+                auto& right_fs = right_ns_fs.feats;
+                for (unsigned int rfn = 0; rfn < lrq.orig_size[right_ns_fs.hash]; ++rfn)
+                {
+                  // NB: ec.ft_offset added by base learner
+                  float rfx = right_fs.values[rfn];
+                  uint64_t rindex = right_fs.indicies[rfn];
+                  uint64_t rwindex = (rindex + (static_cast<uint64_t>(n) << stride_shift));
 
+                  right_fs.push_back(scale * *lw * lfx * rfx, rwindex);
+
+                  if (all.audit || all.hash_inv)
+                  {
+                    std::stringstream new_feature_buffer;
+                    new_feature_buffer << right << '^' << right_fs.space_names[rfn].second << '^' << n;
 #ifdef _WIN32
-                char* new_space = _strdup("lrq");
-                char* new_feature = _strdup(new_feature_buffer.str().c_str());
+                    char* new_space = _strdup("lrq");
+                    char* new_feature = _strdup(new_feature_buffer.str().c_str());
 #else
-                char* new_space = strdup("lrq");
-                char* new_feature = strdup(new_feature_buffer.str().c_str());
+                    char* new_space = strdup("lrq");
+                    char* new_feature = strdup(new_feature_buffer.str().c_str());
 #endif
-                right_fs.space_names.push_back(audit_strings(new_space, new_feature));
+                    right_fs.space_names.push_back(audit_strings(new_space, new_feature));
+                  }
+                }
               }
             }
           }
@@ -154,10 +162,12 @@ void predict_or_learn(LRQstate& lrq, single_learner& base, example& ec)
       ec.confidence = first_uncertainty;
     }
 
-    for (std::string const& i : lrq.lrpairs)
+    for (const std::string& i : lrq.lrpairs)
     {
       unsigned char right = i[(which + 1) % 2];
-      ec.feature_space[right].truncate_to(lrq.orig_size[right]);
+
+      for (auto& right_ns_fs : ec.feature_space.get_list(right))
+      { right_ns_fs.feats.truncate_to(lrq.orig_size[right_ns_fs.hash]); }
     }
   }  // end for(max_iter)
 }

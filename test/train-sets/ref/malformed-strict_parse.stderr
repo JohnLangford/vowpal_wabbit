@@ -8,7 +8,7 @@ num sources = 1
 Enabled reductions: gd, scorer
 average  since         example        example  current  current  current
 loss     last          counter         weight    label  predict features
-[error] vw example #0(parse_example.cc:97): malformed example! '|',space, or EOL expected after : "| x:0.7"in Example #0: "| x:0.7"
+[error] vw example #0(parse_example.cc:96): malformed example! '|',space, or EOL expected after : "| x:0.7"in Example #0: "| x:0.7"
 
-[critical] vw (parse_example.cc:97): malformed example! '|',space, or EOL expected after : "| x:0.7"in Example #0: "| x:0.7"
+[critical] vw (parse_example.cc:96): malformed example! '|',space, or EOL expected after : "| x:0.7"in Example #0: "| x:0.7"
 

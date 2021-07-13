@@ -10,6 +10,7 @@ typedef unsigned char namespace_index;
 #include "reduction_features.h"
 #include "feature_group.h"
 #include "v_array.h"
+#include "namespaced_feature_store.h"
 
 #include <vector>
 #include <set>
@@ -27,37 +28,37 @@ typedef unsigned char namespace_index;
 #  include <mutex>
 #endif
 
+struct indices_proxy_obj
+{
+  VW::namespaced_feature_store* feature_space;
+
+  std::vector<namespace_index>::const_iterator begin() const { return feature_space->indices().begin(); }
+  std::vector<namespace_index>::const_iterator end() const { return feature_space->indices().end(); }
+  // TODO this needs to be fixed to be resilient to duplicated indices
+  size_t size() const { return feature_space->indices().size(); }
+  bool empty() const { return feature_space->indices().empty(); }
+};
+
 struct example_predict
 {
-  class iterator
-  {
-    features* _feature_space;
-    v_array<namespace_index>::iterator _index;
+  using iterator = VW::namespaced_feature_store::iterator;
 
-  public:
-    iterator(features* feature_space, namespace_index* index);
-    features& operator*();
-    iterator& operator++();
-    namespace_index index();
-    bool operator==(const iterator& rhs);
-    bool operator!=(const iterator& rhs);
-  };
-
-  example_predict() = default;
+  example_predict() { indices.feature_space = &feature_space; }
   ~example_predict() = default;
   example_predict(const example_predict&) = delete;
   example_predict& operator=(const example_predict&) = delete;
   example_predict(example_predict&& other) = default;
   example_predict& operator=(example_predict&& other) = default;
 
-  /// If indices is modified this iterator is invalidated.
-  iterator begin();
-  /// If indices is modified this iterator is invalidated.
-  iterator end();
+  /// If feature_space is modified this iterator is invalidated.
+  inline iterator begin() { return feature_space.begin(); }
+  /// If feature_space is modified this iterator is invalidated.
+  inline iterator end() { return feature_space.end(); }
 
-  v_array<namespace_index> indices;
-  std::array<features, NUM_NAMESPACES> feature_space;  // Groups of feature values.
-  uint64_t ft_offset = 0;                              // An offset for all feature values.
+  indices_proxy_obj indices;
+  VW::namespaced_feature_store feature_space;
+
+  uint64_t ft_offset = 0;  // An offset for all feature values.
 
   // Interactions are specified by this struct's interactions vector of vectors of unsigned characters, where each
   // vector is an interaction and each char is a namespace.

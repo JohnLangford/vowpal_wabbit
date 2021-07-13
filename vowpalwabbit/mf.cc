@@ -52,11 +52,8 @@ void predict(mf& data, single_learner& base, example& ec)
   prediction += ec.partial_prediction;
 
   // store namespace indices
-  data.predict_indices = ec.indices;
-
-  // erase indices
-  ec.indices.clear();
-  ec.indices.push_back(0);
+  auto all_features = std::move(ec.feature_space);
+  ec.feature_space = VW::namespaced_feature_store{};
 
   auto* saved_interactions = ec.interactions;
   auto restore_guard = VW::scope_exit([saved_interactions, &ec] { ec.interactions = saved_interactions; });
@@ -67,14 +64,18 @@ void predict(mf& data, single_learner& base, example& ec)
   // add interaction terms to prediction
   for (auto& i : *saved_interactions)
   {
-    auto left_ns = static_cast<int>(i[0]);
-    auto right_ns = static_cast<int>(i[1]);
+    auto left_ns = i[0];
+    auto right_ns = i[1];
 
-    if (ec.feature_space[left_ns].size() > 0 && ec.feature_space[right_ns].size() > 0)
+    auto& left_ns_fs = all_features.get_list(left_ns);
+    auto& right_ns_fs = all_features.get_list(right_ns);
+
+    if (!left_ns_fs.empty() > 0 && !right_ns_fs.empty())
     {
       for (size_t k = 1; k <= data.rank; k++)
       {
-        ec.indices[0] = static_cast<namespace_index>(left_ns);
+        // TODO: Work out a way to not have to make copies to make this work
+        for (const auto& ns_fs : left_ns_fs) { ec.feature_space.get_or_create(left_ns, left_ns).concat(ns_fs.feats); }
 
         // compute l^k * x_l using base learner
         base.predict(ec, k);
@@ -82,7 +83,8 @@ void predict(mf& data, single_learner& base, example& ec)
         if (cache_sub_predictions) data.sub_predictions[2 * k - 1] = x_dot_l;
 
         // set example to right namespace only
-        ec.indices[0] = static_cast<namespace_index>(right_ns);
+        ec.feature_space.clear();
+        for (const auto& ns_fs : right_ns_fs) { ec.feature_space.get_or_create(left_ns, left_ns).concat(ns_fs.feats); }
 
         // compute r^k * x_r using base learner
         base.predict(ec, k + data.rank);
@@ -94,8 +96,9 @@ void predict(mf& data, single_learner& base, example& ec)
       }
     }
   }
+
   // restore namespace indices and label
-  ec.indices = data.predict_indices;
+  ec.feature_space = std::move(all_features);
 
   // finalize prediction
   ec.partial_prediction = prediction;
@@ -112,12 +115,8 @@ void learn(mf& data, single_learner& base, example& ec)
   base.update(ec);
   ec.pred.scalar = ec.updated_prediction;
 
-  // store namespace indices
-  data.indices = ec.indices;
-
-  // erase indices
-  ec.indices.clear();
-  ec.indices.push_back(0);
+  auto all_features = std::move(ec.feature_space);
+  ec.feature_space = VW::namespaced_feature_store{};
 
   auto* saved_interactions = ec.interactions;
   std::vector<std::vector<namespace_index>> empty_interactions;
@@ -127,28 +126,25 @@ void learn(mf& data, single_learner& base, example& ec)
   // looping over all pairs of non-empty namespaces
   for (auto& i : *saved_interactions)
   {
-    int left_ns = static_cast<int>(i[0]);
-    int right_ns = static_cast<int>(i[1]);
+    auto left_ns = i[0];
+    auto right_ns = i[1];
 
-    if (ec.feature_space[left_ns].size() > 0 && ec.feature_space[right_ns].size() > 0)
+    auto& left_ns_fs = all_features.get_list(left_ns);
+    auto& right_ns_fs = all_features.get_list(right_ns);
+
+    if (!left_ns_fs.empty() > 0 && !right_ns_fs.empty())
     {
-      // set example to left namespace only
-      ec.indices[0] = static_cast<namespace_index>(left_ns);
-
-      // store feature values in left namespace
-      data.temp_features = ec.feature_space[left_ns];
+      // TODO: Work out a way to not have to make copies to make this work
+      for (const auto& ns_fs : left_ns_fs) { ec.feature_space.get_or_create(left_ns, left_ns).concat(ns_fs.feats); }
 
       for (size_t k = 1; k <= data.rank; k++)
       {
-        features& fs = ec.feature_space[left_ns];
+        features& fs = ec.feature_space.get(left_ns, left_ns);
         // multiply features in left namespace by r^k * x_r
         for (size_t j = 0; j < fs.size(); ++j) fs.values[j] *= data.sub_predictions[2 * k];
 
         // update l^k using base learner
         base.update(ec, k);
-
-        // restore left namespace features (undoing multiply)
-        fs = data.temp_features;
 
         // compute new l_k * x_l scaling factors
         // base.predict(ec, k);
@@ -157,28 +153,23 @@ void learn(mf& data, single_learner& base, example& ec)
       }
 
       // set example to right namespace only
-      ec.indices[0] = static_cast<namespace_index>(right_ns);
-
-      // store feature values for right namespace
-      data.temp_features = ec.feature_space[right_ns];
+      ec.feature_space.clear();
+      for (const auto& ns_fs : right_ns_fs) { ec.feature_space.get_or_create(right_ns, right_ns).concat(ns_fs.feats); }
 
       for (size_t k = 1; k <= data.rank; k++)
       {
-        features& fs = ec.feature_space[right_ns];
+        features& fs = ec.feature_space.get(right_ns, right_ns);
         // multiply features in right namespace by l^k * x_l
         for (size_t j = 0; j < fs.size(); ++j) fs.values[j] *= data.sub_predictions[2 * k - 1];
 
         // update r^k using base learner
         base.update(ec, k + data.rank);
         ec.pred.scalar = ec.updated_prediction;
-
-        // restore right namespace features
-        fs = data.temp_features;
       }
     }
   }
   // restore namespace indices
-  ec.indices = data.indices;
+  ec.feature_space = std::move(all_features);
 
   // restore original prediction
   ec.pred.scalar = predicted;

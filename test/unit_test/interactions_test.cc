@@ -96,9 +96,10 @@ BOOST_AUTO_TEST_CASE(eval_count_of_generated_ft_permuations_test)
       "--quiet -q :: --leave_duplicate_interactions --permutations --noconstant", nullptr, false, nullptr, nullptr);
   auto* ex = VW::read_example(vw, "3 |f a b c |e x y z");
 
+  std::set<namespace_index> indices(ex->indices.begin(), ex->indices.end());
   auto interactions =
       INTERACTIONS::compile_interactions<INTERACTIONS::generate_namespace_permutations_with_repetition, true>(
-          vw.interactions, std::set<namespace_index>(ex->indices.begin(), ex->indices.end()));
+          vw.interactions, indices);
   ex->interactions = &interactions;
   size_t fast_features_count;
   float fast_features_value;

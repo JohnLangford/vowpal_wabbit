@@ -2,6 +2,7 @@
 // individual contributors. All rights reserved. Released under a BSD (revised)
 // license as described in the file LICENSE.
 #include <cmath>
+#include <map>
 
 #include "vw.h"
 #include "reductions.h"
@@ -38,8 +39,7 @@ struct mwt
   uint32_t num_classes;
   bool learn;
 
-  v_array<namespace_index> indices;  // excluded namespaces
-  features feature_space[256];
+  std::map<std::pair<namespace_index, uint64_t>, features> feature_space;
   vw* all;
 };
 
@@ -68,8 +68,14 @@ void predict_or_learn(mwt& c, single_learner& base, example& ec)
   {
     c.total++;
     // For each nonzero feature in observed namespaces, check it's value.
-    for (unsigned char ns : ec.indices)
-      if (c.namespaces[ns]) GD::foreach_feature<mwt, value_policy>(c.all, ec.feature_space[ns], c);
+    for (auto& bucket : ec)
+    {
+      for (auto it = bucket.begin(); it != bucket.end(); ++it)
+      {
+        if (c.namespaces[it->index]) { GD::foreach_feature<mwt, value_policy>(c.all, it->feats, c); }
+      }
+    }
+
     for (uint64_t policy : c.policies)
     {
       c.evals[policy].cost += get_cost_estimate(c.optional_observation.second, c.evals[policy].action);
@@ -81,25 +87,30 @@ void predict_or_learn(mwt& c, single_learner& base, example& ec)
   VW_WARNING_DISABLE_CPP_17_LANG_EXT
   if VW_STD17_CONSTEXPR (exclude || learn)
   {
-    c.indices.clear();
     uint32_t stride_shift = c.all->weights.stride_shift();
     uint64_t weight_mask = c.all->weights.mask();
-    for (unsigned char ns : ec.indices)
-      if (c.namespaces[ns])
+    for (auto& bucket : ec)
+    {
+      for (auto it = bucket.begin(); it != bucket.end(); ++it)
       {
-        c.indices.push_back(ns);
-        if (learn)
+        if (c.namespaces[it->index])
         {
-          c.feature_space[ns].clear();
-          for (features::iterator& f : ec.feature_space[ns])
+          c.feature_space.insert({{it->index, it->hash}, features{}});
+          c.feature_space.at({it->index, it->hash}).clear();
+          if (learn)
           {
-            uint64_t new_index =
-                ((f.index() & weight_mask) >> stride_shift) * c.num_classes + static_cast<uint64_t>(f.value());
-            c.feature_space[ns].push_back(1, new_index << stride_shift);
+            auto& feats = c.feature_space.at({it->index, it->hash});
+            for (features::iterator& f : it->feats)
+            {
+              uint64_t new_index =
+                  ((f.index() & weight_mask) >> stride_shift) * c.num_classes + static_cast<uint64_t>(f.value());
+              feats.push_back(1, new_index << stride_shift);
+            }
           }
+          std::swap(c.feature_space.at({it->index, it->hash}), it->feats);
         }
-        std::swap(c.feature_space[ns], ec.feature_space[ns]);
       }
+    }
   }
   VW_WARNING_STATE_POP
 
@@ -117,12 +128,9 @@ void predict_or_learn(mwt& c, single_learner& base, example& ec)
   VW_WARNING_STATE_PUSH
   VW_WARNING_DISABLE_CPP_17_LANG_EXT
   if VW_STD17_CONSTEXPR (exclude || learn)
-    while (!c.indices.empty())
-    {
-      unsigned char ns = c.indices.back();
-      c.indices.pop_back();
-      std::swap(c.feature_space[ns], ec.feature_space[ns]);
-    }
+  {
+    for (auto& kv : c.feature_space) { std::swap(kv.second, ec.feature_space.get(kv.first.first, kv.first.second)); }
+  }
   VW_WARNING_STATE_POP
 
   // modify the predictions to use a vector with a score for each evaluated feature.

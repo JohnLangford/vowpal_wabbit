@@ -239,11 +239,11 @@ class custom_examples_queue
 public:
   custom_examples_queue(v_array<example*> examples) : _examples(examples) {}
 
-  example* pop() { return _index < _examples.size() ? _examples[_index++] : nullptr; }
+  example* pop() { return index < _examples.size() ? _examples[index++] : nullptr; }
 
 private:
   v_array<example*> _examples;
-  size_t _index{0};
+  size_t index{0};
 };
 
 template <typename queue_type, typename handler_type>

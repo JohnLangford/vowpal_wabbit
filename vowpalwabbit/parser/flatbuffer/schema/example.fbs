@@ -10,6 +10,7 @@ table Namespace {
   name:string;
   hash:uint8;
   features:[Feature];
+  full_hash:uint64;
 }
 
 table SimpleLabel {

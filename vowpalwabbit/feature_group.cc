@@ -22,6 +22,8 @@ void features::free_space_names(size_t i) { space_names.erase(space_names.begin(
 void features::clear()
 {
   sum_feat_sq = 0.f;
+  index = 0;
+  hash = 0;
   values.clear();
   indicies.clear();
   space_names.clear();
