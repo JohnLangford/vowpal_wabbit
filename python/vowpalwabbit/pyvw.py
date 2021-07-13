@@ -4,6 +4,8 @@
 from __future__ import division
 import pylibvw
 import warnings
+from vowpalwabbit.DFtoVWtoTensorboard import VWtoTensorboard
+
 
 # baked in con py boost https://wiki.python.org/moin/boost.python/FAQ#The_constructors_of_some_classes_I_am_trying_to_wrap_are_private_because_instances_must_be_created_by_using_a_factory._Is_it_possible_to_wrap_such_classes.3F
 class VWOption:
@@ -206,6 +208,45 @@ class SearchTask:
         """
         self._call_vw(my_example, isTest=True, useOracle=useOracle)
         return self._output
+
+
+def get_label(example, label_type):
+    """Similar to pyvw.get_prediction implementation this method gets the label for current example
+
+    Parameters
+    ----------
+
+    example    : example object
+                    Methods of this example object are used to get the appropiate label
+    label_type : integer
+                    This is the integer for representing a specific type of label in vw
+                    - 0: lDEFAULT
+                    - 1: lBINARY
+                    - 2: lMULTICLASS
+                    - 3: lCOST_SENSITIVE
+                    - 4: lCONTEXTUAL_BANDIT
+                    - 5: lMAX
+                    - 6: lCONDITIONAL_CONTEXTUAL_BANDIT
+                    - 7: lSLATES
+                    - 8: lCONTINUOUS
+
+    Returns
+    -------
+
+    label  : integer
+                Actual label of the current example object according to label type
+    """
+    switch_label_type = {
+        pylibvw.vw.lDefault: None,
+        pylibvw.vw.lBinary: example.get_simplelabel_label,
+        pylibvw.vw.lMulticlass: example.get_multiclass_label,
+        pylibvw.vw.lCostSensitive: example.get_costsensitive_class,
+        pylibvw.vw.lContextualBandit: example.get_cbandits_class,
+#         pylibvw.vw.lConditionalContextualBandit: None,
+#         pylibvw.vw.lSlates: None,
+#         pylibvw.vw.lContinuous: None
+    }
+    return switch_label_type[label_type]()  
 
 
 def get_prediction(ec, prediction_type):
@@ -520,7 +561,7 @@ class vw(pylibvw.vw):
         feat_hash = self.hash_feature(feature_name, space_hash)
         return self.get_weight(feat_hash)
 
-    def learn(self, ec):
+    def learn(self, ec, vw_to_tensorboard=None):
         """Perform an online update
 
         Parameters
@@ -528,7 +569,14 @@ class vw(pylibvw.vw):
 
         ec : example/str/list
             examples on which the model gets updated
+
+        vw_to_tensorboard : VWtoTensorboard object
+                           This object is used to calculate metrics and then log them for Tensorboard visualization
         """
+        if isinstance(vw_to_tensorboard, VWtoTensorboard):
+            sum_loss = super().get_sum_loss()
+            weighted_examples = super().get_weighted_examples()
+
         # If a string was given, parse it before passing to learner.
         new_example = False
         if isinstance(ec, str):
@@ -557,6 +605,20 @@ class vw(pylibvw.vw):
 
         if new_example:
             self.finish_example(ec)
+
+        if isinstance(vw_to_tensorboard, VWtoTensorboard):
+            if new_example is False:  # As according to this method's logic self.finish_example(ec) is only called  if new_example==True  thats why  if new_example==False then self.finish_example(ec) has not been called
+                raise RuntimeError("finish_example on current example has not been called, metrics may not be computed correctly")
+
+            sum_loss_since_last = super().get_sum_loss() - sum_loss  # .get_sum_loss() return current sum loss, sum_loss variable right now holds sum loss of previous iteration
+            weighted_examples_since_last = super().get_weighted_examples() - weighted_examples  # .get_weighted_examples() return current weighted examples(sum),  weighted_examples variable right now holds weighted examples of previous iteration             
+            sum_loss = super().get_sum_loss()  # Now sum_loss no longer hold previous iteration's sum_loss
+            weighted_examples = super().get_weighted_examples()  # Now weighted_examples no longer hold previous iteration's weighted examples
+
+            average_loss = (sum_loss / weighted_examples) if weighted_examples != 0  else 0.0
+            since_last = (sum_loss_since_last / weighted_examples_since_last) if weighted_examples_since_last != 0  else 0.0
+
+            vw_to_tensorboard.emit_learning_metrics(average_loss, since_last)
 
     def predict(self, ec, prediction_type=None):
         """Just make a prediction on the example
