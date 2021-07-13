@@ -19,6 +19,7 @@
 using feature_value = float;
 using feature_index = uint64_t;
 using audit_strings = std::pair<std::string, std::string>;
+using namespace_index = unsigned char;
 
 struct features;
 struct features_value_index_audit_range;
@@ -350,3 +351,21 @@ struct features
   VW_DEPRECATED("deep_copy_from is deprecated. Use the copy constructor directly. This will be removed in VW 9.0.")
   void deep_copy_from(const features& src);
 };
+
+namespace VW
+{
+struct namespaced_features
+{
+  features feats;
+  uint64_t hash;
+  namespace_index index;
+
+  namespaced_features(uint64_t hash, namespace_index index) : hash(hash), index(index) {}
+
+  template <typename FeaturesT>
+  namespaced_features(FeaturesT&& inner_features, uint64_t hash, namespace_index index)
+      : feats(std::forward<FeaturesT>(inner_features)), hash(hash), index(index)
+  {
+  }
+};
+}  // namespace VW
